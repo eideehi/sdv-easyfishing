@@ -9,10 +9,13 @@ namespace EideeEasyFishing
     public class ModEntry : Mod
     {
         private ModConfig Config;
+        private ModConfigKeys Keys;
 
         public override void Entry(IModHelper helper)
         {
             Config = Helper.ReadConfig<ModConfig>();
+            Keys = Config.Controls.ParseControls();
+
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
             helper.Events.Input.ButtonPressed += OnButtonPressed;
@@ -41,9 +44,16 @@ namespace EideeEasyFishing
                         int fishSize = Helper.Reflection.GetField<int>(bar, "fishSize").GetValue();
                         int fishQuality = Helper.Reflection.GetField<int>(bar, "fishQuality").GetValue();
                         float difficulty = Helper.Reflection.GetField<float>(bar, "difficulty").GetValue();
-                        bool treasure = Config.TreasureAlwaysBeFound || Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
+                        bool treasure = Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
                         bool fromFishPond = Helper.Reflection.GetField<bool>(bar, "fromFishPond").GetValue();
-                        bool caughtDouble = !rod.bossFish && (Config.AlwaysCaughtDoubleFish || ((rod.attachments[0] == null ? -1 : rod.attachments[0].parentSheetIndex) == 774 && Game1.random.NextDouble() < 0.25 + Game1.player.DailyLuck / 2.0));
+                        bool caughtDouble = false;
+                        if (!rod.bossFish)
+                        {
+                            if (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].parentSheetIndex) == 774)
+                            {
+                                caughtDouble = Config.AlwaysCaughtDoubleFish || Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0));
+                            }
+                        }
 
                         rod.caughtDoubleFish = caughtDouble;
                         rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true, fromFishPond, caughtDouble);
@@ -65,6 +75,12 @@ namespace EideeEasyFishing
 
             if (player.CurrentTool is FishingRod rod)
             {
+                if (Config.AlwaysMaxCastPower && rod.isTimingCast)
+                {
+                    rod.castingTimerSpeed = 0;
+                    rod.castingPower = 1;
+                }
+
                 if (Config.BiteFaster && !rod.isNibbling && rod.isFishing && !rod.isReeling && !rod.pullingOutOfWater && !rod.hit)
                 {
                     rod.timeUntilFishingBite = 0;
@@ -100,7 +116,7 @@ namespace EideeEasyFishing
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs args)
         {
-            if (args.Button == SButton.F5)
+            if (args.Button == Keys.ReloadConfig)
             {
                 Config = Helper.ReadConfig<ModConfig>();
                 Monitor.Log("Config reloaded", LogLevel.Info);

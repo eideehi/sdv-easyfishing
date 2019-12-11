@@ -11,5 +11,7 @@ namespace EideeEasyFishing
         public bool TreasureEasyCaught { get; set; } = false;
         public bool AlwaysCaughtDoubleFish { get; set; } = false;
         public bool CaughtDoubleFishOnAnyBait { get; set; } = false;
+        public bool AlwaysMaxCastPower { get; set; } = false;
+        public ModConfigRawKeys Controls { get; set; } = new ModConfigRawKeys();
     }
 }
