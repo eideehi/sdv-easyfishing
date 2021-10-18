@@ -118,10 +118,17 @@ namespace EideeEasyFishing
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs args)
         {
+            if (!Context.IsWorldReady)
+            {
+                return;
+            }
+
             if (args.Button == Keys.ReloadConfig)
             {
                 Config = Helper.ReadConfig<ModConfig>();
-                Monitor.Log("Config reloaded", LogLevel.Info);
+                Monitor.Log("Config has been reloaded.", LogLevel.Info);
+                string msg = Helper.Translation.Get("config.reload");
+                Game1.addHUDMessage(new HUDMessage(msg, HUDMessage.error_type) { noIcon = true, timeLeft = HUDMessage.defaultTime });
             }
         }
     }
