@@ -51,7 +51,7 @@ namespace EideeEasyFishing
 
                         if (!bossFish)
                         {
-                            if (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].parentSheetIndex) == 774)
+                            if (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].ParentSheetIndex) == 774)
                             {
                                 caughtDouble = Config.AlwaysCaughtDoubleFish || Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0));
                             }
@@ -95,7 +95,7 @@ namespace EideeEasyFishing
 
                 if (!Config.SkipMinigame && Config.AlwaysCaughtDoubleFish)
                 {
-                    rod.caughtDoubleFish = !rod.bossFish && (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].parentSheetIndex) == 774);
+                    rod.caughtDoubleFish = !rod.bossFish && (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].ParentSheetIndex) == 774);
                 }
             }
 
@@ -126,7 +126,6 @@ namespace EideeEasyFishing
             if (args.Button == Keys.ReloadConfig)
             {
                 Config = Helper.ReadConfig<ModConfig>();
-                Monitor.Log("Config has been reloaded.", LogLevel.Info);
                 string msg = Helper.Translation.Get("config.reload");
                 Game1.addHUDMessage(new HUDMessage(msg, HUDMessage.error_type) { noIcon = true, timeLeft = HUDMessage.defaultTime });
             }
