@@ -1,5 +1,4 @@
-﻿
-namespace EideeEasyFishing
+﻿namespace EideeEasyFishing
 {
     class ModConfig
     {
