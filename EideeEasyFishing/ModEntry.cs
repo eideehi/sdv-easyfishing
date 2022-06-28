@@ -142,6 +142,11 @@ namespace EideeEasyFishing
                             }
                         }
 
+                        if (Game1.isFestival())
+                        {
+                            Game1.CurrentEvent.perfectFishing();
+                        }
+
                         rod.caughtDoubleFish = caughtDouble;
                         rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true, fromFishPond, caughtDouble);
 
