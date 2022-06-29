@@ -58,31 +58,10 @@ namespace EideeEasyFishing
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
-                name: I18n.Config_SkipMinigame_Name,
-                tooltip: I18n.Config_SkipMinigame_Description,
-                getValue: () => Config.SkipMinigame,
-                setValue: value => Config.SkipMinigame = value);
-
-            configMenu.AddBoolOption(
-                mod: ModManifest,
-                name: I18n.Config_FishEasyCaught_Name,
-                tooltip: I18n.Config_FishEasyCaught_Description,
-                getValue: () => Config.FishEasyCaught,
-                setValue: value => Config.FishEasyCaught = value);
-
-            configMenu.AddBoolOption(
-                mod: ModManifest,
                 name: I18n.Config_TreasureAlwaysBeFound_Name,
                 tooltip: I18n.Config_TreasureAlwaysBeFound_Description,
                 getValue: () => Config.TreasureAlwaysBeFound,
                 setValue: value => Config.TreasureAlwaysBeFound = value);
-
-            configMenu.AddBoolOption(
-                mod: ModManifest,
-                name: I18n.Config_TreasureEasyCaught_Name,
-                tooltip: I18n.Config_TreasureEasyCaught_Description,
-                getValue: () => Config.TreasureEasyCaught,
-                setValue: value => Config.TreasureEasyCaught = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
@@ -104,6 +83,31 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_AlwaysMaxCastPower_Description,
                 getValue: () => Config.AlwaysMaxCastPower,
                 setValue: value => Config.AlwaysMaxCastPower = value);
+
+            configMenu.AddSectionTitle(
+                mod: ModManifest,
+                text: I18n.Config_Section_Minigame_Name);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_SkipMinigame_Name,
+                tooltip: I18n.Config_SkipMinigame_Description,
+                getValue: () => Config.SkipMinigame,
+                setValue: value => Config.SkipMinigame = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_FishEasyCaught_Name,
+                tooltip: I18n.Config_FishEasyCaught_Description,
+                getValue: () => Config.FishEasyCaught,
+                setValue: value => Config.FishEasyCaught = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_TreasureEasyCaught_Name,
+                tooltip: I18n.Config_TreasureEasyCaught_Description,
+                getValue: () => Config.TreasureEasyCaught,
+                setValue: value => Config.TreasureEasyCaught = value);
         }
 
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
@@ -136,7 +140,7 @@ namespace EideeEasyFishing
 
                         if (!bossFish)
                         {
-                            if (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].ParentSheetIndex) == 774)
+                            if (Config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774)
                             {
                                 caughtDouble = Config.AlwaysCaughtDoubleFish || Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0));
                             }
@@ -185,7 +189,7 @@ namespace EideeEasyFishing
 
                 if (!Config.SkipMinigame && Config.AlwaysCaughtDoubleFish)
                 {
-                    rod.caughtDoubleFish = !rod.bossFish && (Config.CaughtDoubleFishOnAnyBait || (rod.attachments[0] == null ? -1 : rod.attachments[0].ParentSheetIndex) == 774);
+                    rod.caughtDoubleFish = !rod.bossFish && (Config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774);
                 }
             }
 
