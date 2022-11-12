@@ -10,14 +10,14 @@ Starting with version 1.1.1, you can now edit the configuration in the "[Generic
 
 |Property|Description|
 |--------|-----------|
-|BiteFaster|It reduces the time it takes for fish to bite the bait.|
-|HitAutomatically|You do not need to click the mouse to go to the minigame. If the feature to skip the minigame is enabled, you will caught the fish.|
-|SkipMinigame|Skip the minigame and caught the fish.|
-|FishEasyCaught|In the minigame, the fish icon follows the bar.|
-|TreasureAlwaysBeFound|The treasure will appear every time. This works even if you want to skip the minigame.|
-|TreasureEasyCaught|In the mini-game, the treasure icon follows the bar.|
+|BiteFaster|No longer do we have to wait for the fish to bite the bait.|
+|HitAutomatically|You do not have to click the mouse to start the minigame. If the option to "SkipMinigame" is enabled, the fish will be caught as is.|
+|SkipMinigame|Skip the minigame and catch fish. This option always catches the fish in perfect.|
+|FishEasyCaught|In the minigame, the fish icon chases the bar.|
+|TreasureAlwaysBeFound|You will be able to discover the treasure every time. This is also valid if the "Skip Minigame" option is enabled.|
+|TreasureEasyCaught|In the minigame, the fish icon chases the bar.|
 |AlwaysCaughtDoubleFish|If the bait is Wild Bait, it always catches two fish.|
-|CaughtDoubleFishOnAnyBait|You will get a chance to catch two fish regardless of the bait you are using. This can be used in conjunction with AlwaysCaughtDoubleFish.|
+|CaughtDoubleFishOnAnyBait|The chance to catch two fish occurs regardless of the bait being used. This option can be used in conjunction with the "Always Caught Double Fish" option.|
 |AlwaysMaxCastPower|Cast power is always maximized.|
 |ReloadConfig|Set the key to reload the configuration.|
 
