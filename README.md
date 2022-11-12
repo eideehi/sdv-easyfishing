@@ -21,9 +21,15 @@ Starting with version 1.1.1, you can now edit the configuration in the "[Generic
 |AlwaysMaxCastPower|Cast power is always maximized.|
 |ReloadConfig|Set the key to reload the configuration.|
 
+## Contacts:
+- [Issues - GitHub](https://github.com/eideehi/sdv-easyfishing/issues)
+  Only bug reports are accepted under Issues.
+- [eidee.net - Discord server](https://discord.gg/DDQqxkK7s6)
+  Questions, suggestions, comments, etc. can be directed here.
+
 ## Credits:
-### Dependencies:
-* [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098)
+* Dependencies:
+  * [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098)
 
 # License:
 Eidee Easy Fishing is developed and released under the [MIT license](./LICENSE), except for the APIs of the libraries it depends on.
