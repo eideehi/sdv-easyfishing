@@ -1,6 +1,6 @@
 ﻿namespace EideeEasyFishing
 {
-    class ModConfig
+    internal class ModConfig
     {
         public bool BiteFaster { get; set; } = false;
         public bool HitAutomatically { get; set; } = false;
@@ -11,6 +11,6 @@
         public bool AlwaysCaughtDoubleFish { get; set; } = false;
         public bool CaughtDoubleFishOnAnyBait { get; set; } = false;
         public bool AlwaysMaxCastPower { get; set; } = false;
-        public ModConfigRawKeys Controls { get; set; } = new ModConfigRawKeys();
+        public ModConfigRawKeys Controls { get; set; } = new();
     }
 }

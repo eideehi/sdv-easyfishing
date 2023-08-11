@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using StardewModdingAPI;
 
 namespace EideeEasyFishing
@@ -9,20 +10,15 @@ namespace EideeEasyFishing
 
         private static SButton ParseButton(string button)
         {
-            foreach (SButton value in Enum.GetValues(typeof(SButton)))
-            {
-                string name = Enum.GetName(typeof(SButton), value);
-                if (name.Equals(button, StringComparison.OrdinalIgnoreCase))
-                {
-                    return value;
-                }
-            }
-            return SButton.None;
+            return (from SButton value in Enum.GetValues(typeof(SButton))
+                let name = Enum.GetName(typeof(SButton), value)
+                where name is not null && name.Equals(button, StringComparison.OrdinalIgnoreCase)
+                select value).FirstOrDefault();
         }
 
         public ModConfigKeys ParseControls()
         {
-            return new ModConfigKeys(reloadConfig: ParseButton(this.ReloadConfig));
+            return new ModConfigKeys(reloadConfig: ParseButton(ReloadConfig));
         }
     }
 }

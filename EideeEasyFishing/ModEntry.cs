@@ -7,17 +7,17 @@ using StardewValley.Tools;
 
 namespace EideeEasyFishing
 {
-    public class ModEntry : Mod
+    internal class ModEntry : Mod
     {
-        private ModConfig Config;
-        private ModConfigKeys Keys;
+        private ModConfig _config;
+        private ModConfigKeys _keys;
 
         public override void Entry(IModHelper helper)
         {
             I18n.Init(helper.Translation);
 
-            Config = Helper.ReadConfig<ModConfig>();
-            Keys = Config.Controls.ParseControls();
+            _config = Helper.ReadConfig<ModConfig>();
+            _keys = _config.Controls.ParseControls();
 
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
@@ -28,15 +28,12 @@ namespace EideeEasyFishing
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
             var configMenu = Helper.ModRegistry.GetApi<IGenericModConfigMenuApi>("spacechase0.GenericModConfigMenu");
-            if (configMenu == null)
-            {
-                return;
-            }
+            if (configMenu == null) return;
 
             configMenu.Register(
                 mod: ModManifest,
-                reset: () => Config = new ModConfig(),
-                save: () => Helper.WriteConfig(Config));
+                reset: () => _config = new ModConfig(),
+                save: () => Helper.WriteConfig(_config));
 
             configMenu.AddSectionTitle(
                 mod: ModManifest,
@@ -46,43 +43,43 @@ namespace EideeEasyFishing
                 mod: ModManifest,
                 name: I18n.Config_BiteFaster_Name,
                 tooltip: I18n.Config_BiteFaster_Description,
-                getValue: () => Config.BiteFaster,
-                setValue: value => Config.BiteFaster = value);
+                getValue: () => _config.BiteFaster,
+                setValue: value => _config.BiteFaster = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_HitAutomatically_Name,
                 tooltip: I18n.Config_HitAutomatically_Description,
-                getValue: () => Config.HitAutomatically,
-                setValue: value => Config.HitAutomatically = value);
+                getValue: () => _config.HitAutomatically,
+                setValue: value => _config.HitAutomatically = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_TreasureAlwaysBeFound_Name,
                 tooltip: I18n.Config_TreasureAlwaysBeFound_Description,
-                getValue: () => Config.TreasureAlwaysBeFound,
-                setValue: value => Config.TreasureAlwaysBeFound = value);
+                getValue: () => _config.TreasureAlwaysBeFound,
+                setValue: value => _config.TreasureAlwaysBeFound = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_AlwaysCaughtDoubleFish_Name,
                 tooltip: I18n.Config_AlwaysCaughtDoubleFish_Description,
-                getValue: () => Config.AlwaysCaughtDoubleFish,
-                setValue: value => Config.AlwaysCaughtDoubleFish = value);
+                getValue: () => _config.AlwaysCaughtDoubleFish,
+                setValue: value => _config.AlwaysCaughtDoubleFish = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_CaughtDoubleFishOnAnyBait_Name,
                 tooltip: I18n.Config_CaughtDoubleFishOnAnyBait_Description,
-                getValue: () => Config.CaughtDoubleFishOnAnyBait,
-                setValue: value => Config.CaughtDoubleFishOnAnyBait = value);
+                getValue: () => _config.CaughtDoubleFishOnAnyBait,
+                setValue: value => _config.CaughtDoubleFishOnAnyBait = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_AlwaysMaxCastPower_Name,
                 tooltip: I18n.Config_AlwaysMaxCastPower_Description,
-                getValue: () => Config.AlwaysMaxCastPower,
-                setValue: value => Config.AlwaysMaxCastPower = value);
+                getValue: () => _config.AlwaysMaxCastPower,
+                setValue: value => _config.AlwaysMaxCastPower = value);
 
             configMenu.AddSectionTitle(
                 mod: ModManifest,
@@ -92,66 +89,61 @@ namespace EideeEasyFishing
                 mod: ModManifest,
                 name: I18n.Config_SkipMinigame_Name,
                 tooltip: I18n.Config_SkipMinigame_Description,
-                getValue: () => Config.SkipMinigame,
-                setValue: value => Config.SkipMinigame = value);
+                getValue: () => _config.SkipMinigame,
+                setValue: value => _config.SkipMinigame = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_FishEasyCaught_Name,
                 tooltip: I18n.Config_FishEasyCaught_Description,
-                getValue: () => Config.FishEasyCaught,
-                setValue: value => Config.FishEasyCaught = value);
+                getValue: () => _config.FishEasyCaught,
+                setValue: value => _config.FishEasyCaught = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
                 name: I18n.Config_TreasureEasyCaught_Name,
                 tooltip: I18n.Config_TreasureEasyCaught_Description,
-                getValue: () => Config.TreasureEasyCaught,
-                setValue: value => Config.TreasureEasyCaught = value);
+                getValue: () => _config.TreasureEasyCaught,
+                setValue: value => _config.TreasureEasyCaught = value);
         }
 
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
         {
-            Farmer player = Game1.player;
-            if (player is not { IsLocalPlayer: true })
-            {
-                return;
-            }
+            var player = Game1.player;
+            if (player is not { IsLocalPlayer: true }) return;
 
-            if (args.NewMenu is ItemGrabMenu grab && grab.context is FishingRod rod2)
+            if (args.NewMenu is ItemGrabMenu { context: FishingRod { showingTreasure: true } } grab)
             {
-                if (rod2.showingTreasure)
-                {
-                    grab.DropRemainingItems();
-                    Game1.exitActiveMenu();
-                }
+                grab.DropRemainingItems();
+                Game1.exitActiveMenu();
             }
 
             if (args.NewMenu is BobberBar bar)
             {
-                if (Config.TreasureAlwaysBeFound)
+                if (_config.TreasureAlwaysBeFound)
                 {
                     Helper.Reflection.GetField<bool>(bar, "treasure").SetValue(true);
                 }
 
-                if (Config.SkipMinigame)
+                if (_config.SkipMinigame)
                 {
                     if (player.CurrentTool is FishingRod rod)
                     {
-                        int whichFish = Helper.Reflection.GetField<int>(bar, "whichFish").GetValue();
-                        int fishSize = Helper.Reflection.GetField<int>(bar, "fishSize").GetValue();
-                        int fishQuality = Helper.Reflection.GetField<int>(bar, "fishQuality").GetValue();
-                        float difficulty = Helper.Reflection.GetField<float>(bar, "difficulty").GetValue();
-                        bool treasure = Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
-                        bool fromFishPond = Helper.Reflection.GetField<bool>(bar, "fromFishPond").GetValue();
-                        bool bossFish = Helper.Reflection.GetField<bool>(bar, "bossFish").GetValue();
-                        bool caughtDouble = false;
+                        var whichFish = Helper.Reflection.GetField<int>(bar, "whichFish").GetValue();
+                        var fishSize = Helper.Reflection.GetField<int>(bar, "fishSize").GetValue();
+                        var fishQuality = Helper.Reflection.GetField<int>(bar, "fishQuality").GetValue();
+                        var difficulty = Helper.Reflection.GetField<float>(bar, "difficulty").GetValue();
+                        var treasure = Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
+                        var fromFishPond = Helper.Reflection.GetField<bool>(bar, "fromFishPond").GetValue();
+                        var bossFish = Helper.Reflection.GetField<bool>(bar, "bossFish").GetValue();
+                        var caughtDouble = false;
 
                         if (!bossFish)
                         {
-                            if (Config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774)
+                            if (_config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774)
                             {
-                                caughtDouble = Config.AlwaysCaughtDoubleFish || Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0));
+                                caughtDouble = _config.AlwaysCaughtDoubleFish ||
+                                               Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0));
                             }
                         }
 
@@ -161,7 +153,8 @@ namespace EideeEasyFishing
                         }
 
                         rod.caughtDoubleFish = caughtDouble;
-                        rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true, fromFishPond, caughtDouble);
+                        rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true,
+                            fromFishPond, caughtDouble);
 
                         Game1.exitActiveMenu();
                         Game1.setRichPresence("location", (object)Game1.currentLocation.Name);
@@ -172,64 +165,63 @@ namespace EideeEasyFishing
 
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs args)
         {
-            Farmer player = Game1.player;
-            if (player is not { IsLocalPlayer: true })
-            {
-                return;
-            }
+            var player = Game1.player;
+            if (player is not { IsLocalPlayer: true }) return;
 
             if (player.CurrentTool is FishingRod rod)
             {
-                if (Config.AlwaysMaxCastPower && rod.isTimingCast)
+                if (_config.AlwaysMaxCastPower && rod.isTimingCast)
                 {
                     rod.castingTimerSpeed = 0;
                     rod.castingPower = 1;
                 }
 
-                if (Config.BiteFaster && !rod.isNibbling && rod.isFishing && !rod.isReeling && !rod.pullingOutOfWater && !rod.hit)
+                if (_config.BiteFaster && !rod.isNibbling && rod.isFishing && !rod.isReeling &&
+                    !rod.pullingOutOfWater && !rod.hit)
                 {
                     rod.timeUntilFishingBite = 0;
                 }
 
-                if (Config.HitAutomatically && rod.isNibbling && rod.isFishing && !rod.isReeling && !rod.pullingOutOfWater && !rod.hit)
+                if (_config.HitAutomatically && rod.isNibbling && rod.isFishing && !rod.isReeling &&
+                    !rod.pullingOutOfWater && !rod.hit)
                 {
                     Farmer.useTool(player);
                 }
 
-                if (!Config.SkipMinigame && Config.AlwaysCaughtDoubleFish)
+                if (!_config.SkipMinigame && _config.AlwaysCaughtDoubleFish)
                 {
-                    rod.caughtDoubleFish = !rod.bossFish && (Config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774);
+                    rod.caughtDoubleFish = !rod.bossFish &&
+                                           (_config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774);
                 }
             }
 
             if (Game1.activeClickableMenu is BobberBar bar)
             {
-                float bobberBarPos = Helper.Reflection.GetField<float>(bar, "bobberBarPos").GetValue();
-                int bobberBarHeight = Helper.Reflection.GetField<int>(bar, "bobberBarHeight").GetValue();
+                var bobberBarPos = Helper.Reflection.GetField<float>(bar, "bobberBarPos").GetValue();
+                var bobberBarHeight = Helper.Reflection.GetField<int>(bar, "bobberBarHeight").GetValue();
 
-                if (Config.FishEasyCaught)
+                if (_config.FishEasyCaught)
                 {
-                    Helper.Reflection.GetField<float>(bar, "bobberPosition").SetValue(bobberBarPos + (bobberBarHeight / 2) - 25);
+                    Helper.Reflection.GetField<float>(bar, "bobberPosition")
+                        .SetValue(bobberBarPos + (bobberBarHeight / 2) - 25);
                 }
 
-                if (Config.TreasureEasyCaught)
+                if (_config.TreasureEasyCaught)
                 {
-                    Helper.Reflection.GetField<float>(bar, "treasurePosition").SetValue(bobberBarPos + (bobberBarHeight / 2) - 25);
+                    Helper.Reflection.GetField<float>(bar, "treasurePosition")
+                        .SetValue(bobberBarPos + (bobberBarHeight / 2) - 25);
                 }
             }
         }
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs args)
         {
-            if (!Context.IsWorldReady)
-            {
-                return;
-            }
+            if (!Context.IsWorldReady) return;
 
-            if (args.Button == Keys.ReloadConfig)
+            if (args.Button == _keys.ReloadConfig)
             {
-                Config = Helper.ReadConfig<ModConfig>();
-                Keys = Config.Controls.ParseControls();
+                _config = Helper.ReadConfig<ModConfig>();
+                _keys = _config.Controls.ParseControls();
                 Game1.addHUDMessage(new HUDMessage(I18n.Message_Config_Reload(), HUDMessage.error_type)
                 {
                     noIcon = true,
