@@ -113,9 +113,18 @@ namespace EideeEasyFishing
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
         {
             Farmer player = Game1.player;
-            if (player == null || !player.IsLocalPlayer)
+            if (player is not { IsLocalPlayer: true })
             {
                 return;
+            }
+
+            if (args.NewMenu is ItemGrabMenu grab && grab.context is FishingRod rod2)
+            {
+                if (rod2.showingTreasure)
+                {
+                    grab.DropRemainingItems();
+                    Game1.exitActiveMenu();
+                }
             }
 
             if (args.NewMenu is BobberBar bar)
@@ -164,7 +173,7 @@ namespace EideeEasyFishing
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs args)
         {
             Farmer player = Game1.player;
-            if (player == null || !player.IsLocalPlayer)
+            if (player is not { IsLocalPlayer: true })
             {
                 return;
             }
@@ -220,6 +229,7 @@ namespace EideeEasyFishing
             if (args.Button == Keys.ReloadConfig)
             {
                 Config = Helper.ReadConfig<ModConfig>();
+                Keys = Config.Controls.ParseControls();
                 Game1.addHUDMessage(new HUDMessage(I18n.Message_Config_Reload(), HUDMessage.error_type)
                 {
                     noIcon = true,
