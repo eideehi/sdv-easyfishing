@@ -8,17 +8,19 @@ namespace EideeEasyFishing
     {
         public string ReloadConfig { get; set; } = SButton.F5.ToString();
 
-        private static SButton ParseButton(string button)
+        private static SButton ParseButton(string button, SButton defaultButton)
         {
             return (from SButton value in Enum.GetValues(typeof(SButton))
-                let name = Enum.GetName(typeof(SButton), value)
-                where name is not null && name.Equals(button, StringComparison.OrdinalIgnoreCase)
-                select value).FirstOrDefault();
+                    let name = Enum.GetName(typeof(SButton), value)
+                    where name is not null && name.Equals(button, StringComparison.OrdinalIgnoreCase)
+                    select value)
+                .DefaultIfEmpty(defaultButton)
+                .FirstOrDefault();
         }
 
         public ModConfigKeys ParseControls()
         {
-            return new ModConfigKeys(reloadConfig: ParseButton(ReloadConfig));
+            return new ModConfigKeys(reloadConfig: ParseButton(ReloadConfig, SButton.F5));
         }
     }
 }
