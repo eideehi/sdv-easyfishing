@@ -112,38 +112,31 @@ namespace EideeEasyFishing
             var player = Game1.player;
             if (player is not { IsLocalPlayer: true }) return;
 
-            if (args.NewMenu is ItemGrabMenu { context: FishingRod { showingTreasure: true } } grab)
-            {
-                grab.DropRemainingItems();
-                Game1.exitActiveMenu();
-            }
-
             if (args.NewMenu is BobberBar bar)
             {
                 if (_config.TreasureAlwaysBeFound)
                 {
-                    Helper.Reflection.GetField<bool>(bar, "treasure").SetValue(true);
+                    Helper.Reflection.GetField<bool>(bar, "treasureCaught").SetValue(true);
                 }
 
                 if (_config.SkipMinigame)
                 {
                     if (player.CurrentTool is FishingRod rod)
                     {
-                        var whichFish = Helper.Reflection.GetField<int>(bar, "whichFish").GetValue();
+                        var whichFish = Helper.Reflection.GetField<string>(bar, "whichFish").GetValue();
                         var fishSize = Helper.Reflection.GetField<int>(bar, "fishSize").GetValue();
                         var fishQuality = Helper.Reflection.GetField<int>(bar, "fishQuality").GetValue();
                         var difficulty = Helper.Reflection.GetField<float>(bar, "difficulty").GetValue();
-                        var treasure = Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
+                        var treasure = Helper.Reflection.GetField<bool>(bar, "treasureCaught").GetValue();
                         var fromFishPond = Helper.Reflection.GetField<bool>(bar, "fromFishPond").GetValue();
+                        var setFlagOnCatch = Helper.Reflection.GetField<string>(bar, "setFlagOnCatch").GetValue();
                         var bossFish = Helper.Reflection.GetField<bool>(bar, "bossFish").GetValue();
-                        var caughtDouble = false;
+                        var numCaught = 1;
 
                         if (!bossFish)
                         {
-                            if (_config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774)
-                            {
-                                caughtDouble = _config.AlwaysCaughtDoubleFish ||
-                                               Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0));
+                            if (_config.CaughtDoubleFishOnAnyBait || rod?.GetBait()?.QualifiedItemId == "(O)774") {
+                                numCaught = (_config.AlwaysCaughtDoubleFish || Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0))) ? 2 : 1;
                             }
                         }
 
@@ -152,9 +145,7 @@ namespace EideeEasyFishing
                             Game1.CurrentEvent.perfectFishing();
                         }
 
-                        rod.caughtDoubleFish = caughtDouble;
-                        rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true,
-                            fromFishPond, caughtDouble);
+                        rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true, fromFishPond, setFlagOnCatch, bossFish, numCaught);
 
                         Game1.exitActiveMenu();
                         Game1.setRichPresence("location", (object)Game1.currentLocation.Name);
@@ -190,8 +181,7 @@ namespace EideeEasyFishing
 
                 if (!_config.SkipMinigame && _config.AlwaysCaughtDoubleFish)
                 {
-                    rod.caughtDoubleFish = !rod.bossFish &&
-                                           (_config.CaughtDoubleFishOnAnyBait || rod.getBaitAttachmentIndex() == 774);
+                    rod.numberOfFishCaught = (!rod.bossFish && (_config.CaughtDoubleFishOnAnyBait || rod?.GetBait()?.QualifiedItemId == "(O)774")) ? 2 : 1;
                 }
             }
 
