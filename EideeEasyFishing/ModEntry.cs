@@ -116,7 +116,7 @@ namespace EideeEasyFishing
             {
                 if (_config.TreasureAlwaysBeFound)
                 {
-                    Helper.Reflection.GetField<bool>(bar, "treasureCaught").SetValue(true);
+                    Helper.Reflection.GetField<bool>(bar, "treasure").SetValue(true);
                 }
 
                 if (_config.SkipMinigame)
@@ -127,7 +127,7 @@ namespace EideeEasyFishing
                         var fishSize = Helper.Reflection.GetField<int>(bar, "fishSize").GetValue();
                         var fishQuality = Helper.Reflection.GetField<int>(bar, "fishQuality").GetValue();
                         var difficulty = Helper.Reflection.GetField<float>(bar, "difficulty").GetValue();
-                        var treasure = Helper.Reflection.GetField<bool>(bar, "treasureCaught").GetValue();
+                        var treasure = Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
                         var fromFishPond = Helper.Reflection.GetField<bool>(bar, "fromFishPond").GetValue();
                         var setFlagOnCatch = Helper.Reflection.GetField<string>(bar, "setFlagOnCatch").GetValue();
                         var bossFish = Helper.Reflection.GetField<bool>(bar, "bossFish").GetValue();
