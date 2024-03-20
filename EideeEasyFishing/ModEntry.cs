@@ -12,6 +12,10 @@ namespace EideeEasyFishing
         private ModConfig _config;
         private ModConfigKeys _keys;
 
+        private bool _isFirstTick;
+        private float _prevBobberPosition;
+        private float _prevDistanceFromCatching;
+
         public override void Entry(IModHelper helper)
         {
             I18n.Init(helper.Translation);
@@ -105,6 +109,27 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_TreasureEasyCaught_Description,
                 getValue: () => _config.TreasureEasyCaught,
                 setValue: value => _config.TreasureEasyCaught = value);
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: I18n.Config_FishMovementSpeedMultiplier_Name,
+                tooltip: I18n.Config_FishMovementSpeedMultiplier_Description,
+                getValue: () => _config.FishMovementSpeedMultiplier,
+                setValue: value => _config.FishMovementSpeedMultiplier = value);
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: I18n.Config_ProgressBarDecreaseMultiplier_Name,
+                tooltip: I18n.Config_ProgressBarDecreaseMultiplier_Description,
+                getValue: () => _config.ProgressBarDecreaseMultiplier,
+                setValue: value => _config.ProgressBarDecreaseMultiplier = value);
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: I18n.Config_ProgressBarIncreaseMultiplier_Name,
+                tooltip: I18n.Config_ProgressBarIncreaseMultiplier_Description,
+                getValue: () => _config.ProgressBarIncreaseMultiplier,
+                setValue: value => _config.ProgressBarIncreaseMultiplier = value);
         }
 
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
@@ -114,29 +139,26 @@ namespace EideeEasyFishing
 
             if (args.NewMenu is BobberBar bar)
             {
+                _isFirstTick = true;
+
                 if (_config.TreasureAlwaysBeFound)
                 {
-                    Helper.Reflection.GetField<bool>(bar, "treasure").SetValue(true);
+                    bar.treasure = true;
                 }
 
                 if (_config.SkipMinigame)
                 {
                     if (player.CurrentTool is FishingRod rod)
                     {
-                        var whichFish = Helper.Reflection.GetField<string>(bar, "whichFish").GetValue();
-                        var fishSize = Helper.Reflection.GetField<int>(bar, "fishSize").GetValue();
-                        var fishQuality = Helper.Reflection.GetField<int>(bar, "fishQuality").GetValue();
-                        var difficulty = Helper.Reflection.GetField<float>(bar, "difficulty").GetValue();
-                        var treasure = Helper.Reflection.GetField<bool>(bar, "treasure").GetValue();
-                        var fromFishPond = Helper.Reflection.GetField<bool>(bar, "fromFishPond").GetValue();
-                        var setFlagOnCatch = Helper.Reflection.GetField<string>(bar, "setFlagOnCatch").GetValue();
-                        var bossFish = Helper.Reflection.GetField<bool>(bar, "bossFish").GetValue();
                         var numCaught = 1;
 
-                        if (!bossFish)
+                        if (!bar.bossFish && (_config.CaughtDoubleFishOnAnyBait ||
+                                              rod?.GetBait()?.QualifiedItemId == "(O)774"))
                         {
-                            if (_config.CaughtDoubleFishOnAnyBait || rod?.GetBait()?.QualifiedItemId == "(O)774") {
-                                numCaught = (_config.AlwaysCaughtDoubleFish || Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0))) ? 2 : 1;
+                            if (_config.AlwaysCaughtDoubleFish ||
+                                Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0)))
+                            {
+                                numCaught = 1;
                             }
                         }
 
@@ -145,10 +167,11 @@ namespace EideeEasyFishing
                             Game1.CurrentEvent.perfectFishing();
                         }
 
-                        rod.pullFishFromWater(whichFish, fishSize, fishQuality, (int)difficulty, treasure, true, fromFishPond, setFlagOnCatch, bossFish, numCaught);
+                        rod.pullFishFromWater(bar.whichFish, bar.fishSize, bar.fishQuality, (int)bar.difficulty,
+                            bar.treasure, true, bar.fromFishPond, bar.setFlagOnCatch, bar.bossFish, numCaught);
 
                         Game1.exitActiveMenu();
-                        Game1.setRichPresence("location", (object)Game1.currentLocation.Name);
+                        Game1.setRichPresence("location", Game1.currentLocation.Name);
                     }
                 }
             }
@@ -181,26 +204,57 @@ namespace EideeEasyFishing
 
                 if (!_config.SkipMinigame && _config.AlwaysCaughtDoubleFish)
                 {
-                    rod.numberOfFishCaught = (!rod.bossFish && (_config.CaughtDoubleFishOnAnyBait || rod?.GetBait()?.QualifiedItemId == "(O)774")) ? 2 : 1;
+                    rod.numberOfFishCaught =
+                        (!rod.bossFish && (_config.CaughtDoubleFishOnAnyBait ||
+                                           rod?.GetBait()?.QualifiedItemId == "(O)774"))
+                            ? 2
+                            : 1;
                 }
             }
 
             if (Game1.activeClickableMenu is BobberBar bar)
             {
-                var bobberBarPos = Helper.Reflection.GetField<float>(bar, "bobberBarPos").GetValue();
-                var bobberBarHeight = Helper.Reflection.GetField<int>(bar, "bobberBarHeight").GetValue();
-
-                if (_config.FishEasyCaught)
+                if (!_isFirstTick)
                 {
-                    Helper.Reflection.GetField<float>(bar, "bobberPosition")
-                        .SetValue(bobberBarPos + (bobberBarHeight / 2) - 25);
+                    if (_config.FishEasyCaught)
+                    {
+                        bar.bobberPosition = bar.bobberBarPos + (bar.bobberBarHeight / 2f) - 25;
+                    }
+
+                    if (_config.TreasureEasyCaught)
+                    {
+                        bar.treasurePosition = bar.bobberBarPos + (bar.bobberBarHeight / 2f) - 25;
+                    }
+
+                    if (_prevBobberPosition != bar.bobberPosition)
+                    {
+                        if (_prevBobberPosition > 0 && bar.bobberPosition > 0)
+                        {
+                            bar.bobberPosition = _prevBobberPosition + ((bar.bobberPosition - _prevBobberPosition) *
+                                                                        _config.FishMovementSpeedMultiplier);
+                        }
+                    }
+
+                    if (_prevDistanceFromCatching != bar.distanceFromCatching)
+                    {
+                        if (_prevDistanceFromCatching > bar.distanceFromCatching)
+                        {
+                            bar.distanceFromCatching = _prevDistanceFromCatching +
+                                                       ((bar.distanceFromCatching - _prevDistanceFromCatching) *
+                                                        _config.ProgressBarDecreaseMultiplier);
+                        }
+                        else
+                        {
+                            bar.distanceFromCatching = _prevDistanceFromCatching +
+                                                       ((bar.distanceFromCatching - _prevDistanceFromCatching) *
+                                                        _config.ProgressBarIncreaseMultiplier);
+                        }
+                    }
                 }
 
-                if (_config.TreasureEasyCaught)
-                {
-                    Helper.Reflection.GetField<float>(bar, "treasurePosition")
-                        .SetValue(bobberBarPos + (bobberBarHeight / 2) - 25);
-                }
+                _isFirstTick = false;
+                _prevBobberPosition = bar.bobberPosition;
+                _prevDistanceFromCatching = bar.distanceFromCatching;
             }
         }
 

@@ -19,5 +19,11 @@
   "config.fish-easy-caught.name": "Fish Easy Caught",
   "config.fish-easy-caught.description": "In the minigame, the fish icon chases the bar.",
   "config.treasure-easy-caught.name": "Treasure Easy Caught",
-  "config.treasure-easy-caught.description": "In the minigame, the treasure icon follows the bar."
+  "config.treasure-easy-caught.description": "In the minigame, the treasure icon follows the bar.",
+  "config.fish-movement-speed-multiplier.name": "Fish Movement Speed Multiplier",
+  "config.fish-movement-speed-multiplier.description": "Multiplier for the movement speed of fish in the minigame.",
+  "config.progress-bar-decrease-multiplier.name": "Progress Bar Decrease Multiplier",
+  "config.progress-bar-decrease-multiplier.description": "Multiplier for the speed at which the capture progress bar decreases in the minigame.",
+  "config.progress-bar-increase-multiplier.name": "Progress Bar Increase Multiplier",
+  "config.progress-bar-increase-multiplier.description": "Multiplier for the speed at which the capture progress bar increases in the minigame."
 }

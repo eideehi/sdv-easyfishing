@@ -10,16 +10,19 @@ Starting with version 1.1.1, you can now edit the configuration in the "[Generic
 
 |Property|Description|
 |--------|-----------|
-|BiteFaster|No longer do we have to wait for the fish to bite the bait.|
-|HitAutomatically|You do not have to click the mouse to start the minigame. If the option to "SkipMinigame" is enabled, the fish will be caught as is.|
-|SkipMinigame|Skip the minigame and catch fish. This option always catches the fish in perfect.|
-|FishEasyCaught|In the minigame, the fish icon chases the bar.|
-|TreasureAlwaysBeFound|You will be able to discover the treasure every time. This is also valid if the "Skip Minigame" option is enabled.|
-|TreasureEasyCaught|In the minigame, the fish icon chases the bar.|
-|AlwaysCaughtDoubleFish|If the bait is Wild Bait, it always catches two fish.|
-|CaughtDoubleFishOnAnyBait|The chance to catch two fish occurs regardless of the bait being used. This option can be used in conjunction with the "Always Caught Double Fish" option.|
-|AlwaysMaxCastPower|Cast power is always maximized.|
-|ReloadConfig|Set the key to reload the configuration.|
+|Bite Faster|No longer do we have to wait for the fish to bite the bait.|
+|Hit Automatically|You do not have to click the mouse to start the minigame. If the option to "Skip Minigame" is enabled, the fish will be caught as is.|
+|Skip Minigame|Skip the minigame and catch fish. This option always catches the fish in perfect.|
+|Fish Easy Caught|In the minigame, the fish icon chases the bar.|
+|Treasure Always BeFound|You will be able to discover the treasure every time. This is also valid if the "Skip Minigame" option is enabled.|
+|Treasure Easy Caught|In the minigame, the fish icon chases the bar.|
+|Always Caught Double Fish|If the bait is Wild Bait, it always catches two fish.|
+|Caught Double Fish On Any Bait|The chance to catch two fish occurs regardless of the bait being used. This option can be used in conjunction with the "Always Caught Double Fish" option.|
+|Always Max Cast Power|Cast power is always maximized.|
+|Fish Movement Speed Multiplier|Multiplier for the speed at which the capture progress bar decreases in the minigame.|
+|Progress Bar Decrease Multiplier|Multiplier for the speed at which the capture progress bar decreases in the minigame.|
+|Progress Bar Increase Multiplier|Multiplier for the speed at which the capture progress bar increases in the minigame.|
+|Reload Config|Set the key to reload the configuration.|
 
 ## Contacts:
 - [Issues - GitHub](https://github.com/eideehi/sdv-easyfishing/issues)
