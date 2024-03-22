@@ -25,5 +25,7 @@
   "config.progress-bar-decrease-multiplier.name": "進捗ゲージの減少速度倍率",
   "config.progress-bar-decrease-multiplier.description": "ミニゲームでの捕獲進捗ゲージの減少速度にかかる倍率です。",
   "config.progress-bar-increase-multiplier.name": "進捗ゲージの増加速度倍率",
-  "config.progress-bar-increase-multiplier.description": "ミニゲームでの捕獲進捗ゲージの増加速度にかかる倍率です。"
+  "config.progress-bar-increase-multiplier.description": "ミニゲームでの捕獲進捗ゲージの増加速度にかかる倍率です。",
+  "config.treasure-catch-speed-multiplier.name": "宝箱の釣り上げ速度倍率",
+  "config.treasure-catch-speed-multiplier.description": "ミニゲームでの宝箱を釣り上げる速さにかかる倍率です。"
 }

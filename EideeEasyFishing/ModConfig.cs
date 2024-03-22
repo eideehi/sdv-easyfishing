@@ -14,6 +14,7 @@
         public float FishMovementSpeedMultiplier { get; set; } = 0.5f;
         public float ProgressBarDecreaseMultiplier { get; set; } = 0.5f;
         public float ProgressBarIncreaseMultiplier { get; set; } = 1.25f;
+        public float TreasureCatchSpeedMultiplier { get; set; } = 1.5f;
         public ModConfigRawKeys Controls { get; set; } = new();
     }
 }

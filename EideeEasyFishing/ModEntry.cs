@@ -1,4 +1,5 @@
-﻿using GenericModConfigMenu;
+﻿using System;
+using GenericModConfigMenu;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -12,9 +13,10 @@ namespace EideeEasyFishing
         private ModConfig _config;
         private ModConfigKeys _keys;
 
-        private bool _isFirstTick;
+        private int _delayTick;
         private float _prevBobberPosition;
         private float _prevDistanceFromCatching;
+        private float _prevTreasureCatchLevel;
 
         public override void Entry(IModHelper helper)
         {
@@ -130,50 +132,70 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_ProgressBarIncreaseMultiplier_Description,
                 getValue: () => _config.ProgressBarIncreaseMultiplier,
                 setValue: value => _config.ProgressBarIncreaseMultiplier = value);
+
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: I18n.Config_TreasureCatchSpeedMultiplier_Name,
+                tooltip: I18n.Config_TreasureCatchSpeedMultiplier_Description,
+                getValue: () => _config.TreasureCatchSpeedMultiplier,
+                setValue: value => _config.TreasureCatchSpeedMultiplier = value);
         }
 
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
         {
             var player = Game1.player;
             if (player is not { IsLocalPlayer: true }) return;
+            if (player.CurrentTool is not FishingRod rod) return;
+            if (args.NewMenu is not BobberBar bar) return;
 
-            if (args.NewMenu is BobberBar bar)
+            if (_config.TreasureAlwaysBeFound)
             {
-                _isFirstTick = true;
+                bar.treasure = true;
+            }
 
-                if (_config.TreasureAlwaysBeFound)
+            if (!_config.SkipMinigame)
+            {
+                _delayTick = 8;
+                _prevBobberPosition = 0f;
+                _prevDistanceFromCatching = 0f;
+                _prevTreasureCatchLevel = 0f;
+
+                if (bar.distanceFromCatching != 0.1f)
                 {
-                    bar.treasure = true;
+                    bar.distanceFromCatching = 0.3f;
                 }
+            }
+            else
+            {
+                var numCaught = 1;
 
-                if (_config.SkipMinigame)
+                if (!bar.bossFish)
                 {
-                    if (player.CurrentTool is FishingRod rod)
+                    if (_config.CaughtDoubleFishOnAnyBait || rod?.GetBait()?.QualifiedItemId == "(O)774")
                     {
-                        var numCaught = 1;
-
-                        if (!bar.bossFish && (_config.CaughtDoubleFishOnAnyBait ||
-                                              rod?.GetBait()?.QualifiedItemId == "(O)774"))
+                        if (_config.AlwaysCaughtDoubleFish ||
+                            Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0)))
                         {
-                            if (_config.AlwaysCaughtDoubleFish ||
-                                Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0)))
-                            {
-                                numCaught = 1;
-                            }
+                            numCaught = 2;
                         }
+                    }
 
-                        if (Game1.isFestival())
-                        {
-                            Game1.CurrentEvent.perfectFishing();
-                        }
-
-                        rod.pullFishFromWater(bar.whichFish, bar.fishSize, bar.fishQuality, (int)bar.difficulty,
-                            bar.treasure, true, bar.fromFishPond, bar.setFlagOnCatch, bar.bossFish, numCaught);
-
-                        Game1.exitActiveMenu();
-                        Game1.setRichPresence("location", Game1.currentLocation.Name);
+                    if (bar.challengeBaitFishes > 0)
+                    {
+                        numCaught = bar.challengeBaitFishes;
                     }
                 }
+
+                if (Game1.isFestival())
+                {
+                    Game1.CurrentEvent.perfectFishing();
+                }
+
+                rod.pullFishFromWater(bar.whichFish, bar.fishSize, bar.fishQuality, (int)bar.difficulty, bar.treasure,
+                    true, bar.fromFishPond, bar.setFlagOnCatch, bar.bossFish, numCaught);
+
+                Game1.exitActiveMenu();
+                Game1.setRichPresence("location", Game1.currentLocation.Name);
             }
         }
 
@@ -212,9 +234,13 @@ namespace EideeEasyFishing
                 }
             }
 
-            if (Game1.activeClickableMenu is BobberBar bar)
+            if (Game1.activeClickableMenu is BobberBar bar && !_config.SkipMinigame)
             {
-                if (!_isFirstTick)
+                if (_delayTick > 0)
+                {
+                    _delayTick--;
+                }
+                else
                 {
                     if (_config.FishEasyCaught)
                     {
@@ -226,21 +252,28 @@ namespace EideeEasyFishing
                         bar.treasurePosition = bar.bobberBarPos + (bar.bobberBarHeight / 2f) - 25;
                     }
 
-                    if (_prevBobberPosition != bar.bobberPosition)
+                    if (_prevBobberPosition != 0 && bar.bobberPosition != 0 &&
+                        _prevBobberPosition != bar.bobberPosition)
                     {
-                        if (_prevBobberPosition > 0 && bar.bobberPosition > 0)
+                        if (_prevBobberPosition > bar.bobberPosition)
+                        {
+                            bar.bobberPosition = _prevBobberPosition - ((_prevBobberPosition - bar.bobberPosition) *
+                                                                        _config.FishMovementSpeedMultiplier);
+                        }
+                        else
                         {
                             bar.bobberPosition = _prevBobberPosition + ((bar.bobberPosition - _prevBobberPosition) *
                                                                         _config.FishMovementSpeedMultiplier);
                         }
                     }
 
-                    if (_prevDistanceFromCatching != bar.distanceFromCatching)
+                    if (_prevDistanceFromCatching != 0 && bar.distanceFromCatching != 0 &&
+                        _prevDistanceFromCatching != bar.distanceFromCatching)
                     {
                         if (_prevDistanceFromCatching > bar.distanceFromCatching)
                         {
-                            bar.distanceFromCatching = _prevDistanceFromCatching +
-                                                       ((bar.distanceFromCatching - _prevDistanceFromCatching) *
+                            bar.distanceFromCatching = _prevDistanceFromCatching -
+                                                       ((_prevDistanceFromCatching - bar.distanceFromCatching) *
                                                         _config.ProgressBarDecreaseMultiplier);
                         }
                         else
@@ -249,12 +282,22 @@ namespace EideeEasyFishing
                                                        ((bar.distanceFromCatching - _prevDistanceFromCatching) *
                                                         _config.ProgressBarIncreaseMultiplier);
                         }
+
+                        bar.distanceFromCatching = Math.Max(0f, Math.Min(1f, bar.distanceFromCatching));
+                    }
+
+                    if (_prevTreasureCatchLevel != 0 && bar.treasureCatchLevel != 0 &&
+                        _prevTreasureCatchLevel != bar.treasureCatchLevel)
+                    {
+                        bar.treasureCatchLevel = _prevTreasureCatchLevel +
+                                                 ((bar.treasureCatchLevel - _prevTreasureCatchLevel) *
+                                                  _config.TreasureCatchSpeedMultiplier);
                     }
                 }
 
-                _isFirstTick = false;
                 _prevBobberPosition = bar.bobberPosition;
                 _prevDistanceFromCatching = bar.distanceFromCatching;
+                _prevTreasureCatchLevel = bar.treasureCatchLevel;
             }
         }
 
