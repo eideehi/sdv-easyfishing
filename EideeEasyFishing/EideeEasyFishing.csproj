@@ -3,7 +3,7 @@
   <PropertyGroup>
     <AssemblyName>EideeEasyFishing</AssemblyName>
     <RootNamespace>EideeEasyFishing</RootNamespace>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
