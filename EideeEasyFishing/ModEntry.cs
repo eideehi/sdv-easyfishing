@@ -3,6 +3,7 @@ using GenericModConfigMenu;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.Constants;
 using StardewValley.Menus;
 using StardewValley.Tools;
 
@@ -65,6 +66,13 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_TreasureAlwaysBeFound_Description,
                 getValue: () => _config.TreasureAlwaysBeFound,
                 setValue: value => _config.TreasureAlwaysBeFound = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_AlwaysGoldenTreasure_Name,
+                tooltip: I18n.Config_AlwaysGoldenTreasure_Description,
+                getValue: () => _config.AlwaysGoldenTreasure,
+                setValue: value => _config.AlwaysGoldenTreasure = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
@@ -148,10 +156,7 @@ namespace EideeEasyFishing
             if (player.CurrentTool is not FishingRod rod) return;
             if (args.NewMenu is not BobberBar bar) return;
 
-            if (_config.TreasureAlwaysBeFound)
-            {
-                bar.treasure = true;
-            }
+            ApplyTreasureState(rod, bar);
 
             if (!_config.SkipMinigame)
             {
@@ -299,6 +304,37 @@ namespace EideeEasyFishing
                 _prevDistanceFromCatching = bar.distanceFromCatching;
                 _prevTreasureCatchLevel = bar.treasureCatchLevel;
             }
+        }
+
+        private void ApplyTreasureState(FishingRod rod, BobberBar bar)
+        {
+            var hadTreasureBeforeMod = bar.treasure;
+            if (_config.TreasureAlwaysBeFound)
+            {
+                bar.treasure = true;
+            }
+
+            if (_config.AlwaysGoldenTreasure && bar.treasure)
+            {
+                bar.goldenTreasure = true;
+            }
+            else if (!hadTreasureBeforeMod && bar.treasure)
+            {
+                // This mirrors FishingRod.startMinigameEndFunction in 1.6.15 for post-added treasure only.
+                bar.goldenTreasure = ShouldForceGoldenTreasure();
+            }
+
+            rod.goldenTreasure = bar.goldenTreasure;
+        }
+
+        private bool ShouldForceGoldenTreasure()
+        {
+            if (Game1.player.stats.Get(StatKeys.Mastery(1)) == 0)
+            {
+                return false;
+            }
+
+            return Game1.random.NextDouble() < 0.25 + Game1.player.team.AverageDailyLuck();
         }
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs args)

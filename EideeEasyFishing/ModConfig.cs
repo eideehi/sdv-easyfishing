@@ -7,6 +7,7 @@
         public bool SkipMinigame { get; set; } = false;
         public bool FishEasyCaught { get; set; } = false;
         public bool TreasureAlwaysBeFound { get; set; } = false;
+        public bool AlwaysGoldenTreasure { get; set; } = false;
         public bool TreasureEasyCaught { get; set; } = false;
         public bool AlwaysCaughtDoubleFish { get; set; } = false;
         public bool CaughtDoubleFishOnAnyBait { get; set; } = false;

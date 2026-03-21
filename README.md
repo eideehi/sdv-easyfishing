@@ -13,6 +13,7 @@ Starting with version 1.1.1, you can now edit the configuration in the "[Generic
 | Bite Faster                      | Waiting for fish to bite the bait is no longer necessary.                                                                       |
 | Hit Automatically                | Clicking the mouse to start the minigame is not required. If "Skip Minigame" is enabled, the fish will be caught automatically. |
 | Treasure Always Be Found         | Discovering treasure is guaranteed on every attempt, even with "Skip Minigame" enabled.                                         |
+| Always Golden Treasure           | Whenever treasure appears, whether naturally or forced, it will always be a golden treasure chest.                              |
 | Always Caught Double Fish        | Using Wild Bait always results in catching two fish.                                                                            |
 | Caught Double Fish On Any Bait   | The chance to catch two fish is present with any bait used, and can be combined with "Always Caught Double Fish".               |
 | Always Max Cast Power            | Casting power is always at its maximum.                                                                                         |

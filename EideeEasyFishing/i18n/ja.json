@@ -7,6 +7,8 @@
   "config.hit-automatically.description": "マウスをクリックしなくてもミニゲームが開始されます。「ミニゲームをスキップする」オプションが有効な場合はそのまま魚を釣り上げます。",
   "config.treasure-always-be-found.name": "常に宝箱を発見する",
   "config.treasure-always-be-found.description": "宝物を毎回発見できるようになります。「ミニゲームをスキップする」オプションが有効になっている場合も有効です。",
+  "config.always-golden-treasure.name": "常に金の宝箱にする",
+  "config.always-golden-treasure.description": "宝箱が出現した場合、通常発生か強制発生かに関わらず常に金の宝箱になります。",
   "config.always-caught-double-fish.name": "必ず二尾の魚を釣り上げる",
   "config.always-caught-double-fish.description": "ワイルドな釣りエサを使用している場合、必ず二尾の魚を釣り上げます。",
   "config.caught-double-fish-on-any-bait.name": "どんなエサでも二尾の魚を釣り上げる",

@@ -7,6 +7,8 @@
   "config.hit-automatically.description": "Clicking the mouse to start the minigame is not required. If \"Skip Minigame\" is enabled, the fish will be caught automatically.",
   "config.treasure-always-be-found.name": "Treasure Always Be Found",
   "config.treasure-always-be-found.description": "Discovering treasure is guaranteed on every attempt, even with \"Skip Minigame\" enabled.",
+  "config.always-golden-treasure.name": "Always Golden Treasure",
+  "config.always-golden-treasure.description": "Whenever treasure appears, it will always be a golden treasure chest.",
   "config.always-caught-double-fish.name": "Always Caught Double Fish",
   "config.always-caught-double-fish.description": "Using Wild Bait always results in catching two fish.",
   "config.caught-double-fish-on-any-bait.name": "Caught Double Fish On Any Bait",
