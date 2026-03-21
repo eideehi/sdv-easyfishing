@@ -26,6 +26,13 @@ Starting with version 1.1.1, you can now edit the configuration in the "[Generic
 | Treasure Catch Speed Multiplier  | This is a multiplier for the speed at which treasure is caught in the minigame.                                                 |
 | Reload Config                    | This sets the key for reloading the configuration.                                                                              |
 
+## Stardew Valley 1.6 Notes:
+Fish selection still follows the base game's 1.6 logic. This mod only changes what happens after a fish is chosen.
+
+That means bait and lure effects like Curiosity Lure, Specific Bait, Deluxe Bait, and Challenge Bait keep their vanilla behavior. Easy Fishing only adjusts bite timing, minigame handling, treasure handling, and related catch assistance.
+
+The progress bar multipliers affect the amount the bar changes from frame to frame. They do not replace the game's own bait, lure, or penalty rules.
+
 ## Contacts:
 - [Issues - GitHub](https://github.com/eideehi/sdv-easyfishing/issues)
   Only bug reports are accepted under Issues.
