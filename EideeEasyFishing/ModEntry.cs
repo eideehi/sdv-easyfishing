@@ -2,8 +2,8 @@
 using GenericModConfigMenu;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using StardewValley;
 using StardewValley.Constants;
+using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Tools;
 
@@ -11,10 +11,13 @@ namespace EideeEasyFishing
 {
     internal class ModEntry : Mod
     {
+        private const string WildBaitQualifiedItemId = "(O)774";
+
         private ModConfig _config;
         private ModConfigKeys _keys;
 
         private int _delayTick;
+        private bool _syncMinigameState;
         private float _prevBobberPosition;
         private float _prevDistanceFromCatching;
         private float _prevTreasureCatchLevel;
@@ -161,10 +164,12 @@ namespace EideeEasyFishing
             if (!_config.SkipMinigame)
             {
                 _delayTick = 8;
+                _syncMinigameState = true;
                 _prevBobberPosition = 0f;
                 _prevDistanceFromCatching = 0f;
                 _prevTreasureCatchLevel = 0f;
 
+                // BobberBar starts at 0.3 in normal play and 0.1 for the tutorial in 1.6.15.
                 if (bar.distanceFromCatching != 0.1f)
                 {
                     bar.distanceFromCatching = 0.3f;
@@ -172,24 +177,7 @@ namespace EideeEasyFishing
             }
             else
             {
-                var numCaught = 1;
-
-                if (!bar.bossFish)
-                {
-                    if (_config.CaughtDoubleFishOnAnyBait || rod?.GetBait()?.QualifiedItemId == "(O)774")
-                    {
-                        if (_config.AlwaysCaughtDoubleFish ||
-                            Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0)))
-                        {
-                            numCaught = 2;
-                        }
-                    }
-
-                    if (bar.challengeBaitFishes > 0)
-                    {
-                        numCaught = bar.challengeBaitFishes;
-                    }
-                }
+                var numCaught = GetDesiredFishCaughtCount(rod, bar, allowLuckyDoubleFish: true);
 
                 if (Game1.isFestival())
                 {
@@ -231,11 +219,8 @@ namespace EideeEasyFishing
 
                 if (!_config.SkipMinigame && _config.AlwaysCaughtDoubleFish)
                 {
-                    rod.numberOfFishCaught =
-                        (!rod.bossFish && (_config.CaughtDoubleFishOnAnyBait ||
-                                           rod?.GetBait()?.QualifiedItemId == "(O)774"))
-                            ? 2
-                            : 1;
+                    rod.numberOfFishCaught = GetDesiredFishCaughtCount(rod, Game1.activeClickableMenu as BobberBar,
+                        allowLuckyDoubleFish: false);
                 }
             }
 
@@ -244,6 +229,13 @@ namespace EideeEasyFishing
                 if (_delayTick > 0)
                 {
                     _delayTick--;
+                }
+                else if (_syncMinigameState)
+                {
+                    _prevBobberPosition = bar.bobberPosition;
+                    _prevDistanceFromCatching = bar.distanceFromCatching;
+                    _prevTreasureCatchLevel = bar.treasureCatchLevel;
+                    _syncMinigameState = false;
                 }
                 else
                 {
@@ -275,6 +267,8 @@ namespace EideeEasyFishing
                     if (_prevDistanceFromCatching != 0 && bar.distanceFromCatching != 0 &&
                         _prevDistanceFromCatching != bar.distanceFromCatching)
                     {
+                        // These multipliers adjust the per-frame progress change after the game has already
+                        // calculated it; they do not replace the game's internal penalty modifier.
                         if (_prevDistanceFromCatching > bar.distanceFromCatching)
                         {
                             bar.distanceFromCatching = _prevDistanceFromCatching -
@@ -325,6 +319,31 @@ namespace EideeEasyFishing
             }
 
             rod.goldenTreasure = bar.goldenTreasure;
+        }
+
+        private int GetDesiredFishCaughtCount(FishingRod rod, BobberBar bar, bool allowLuckyDoubleFish)
+        {
+            if (rod.bossFish || (bar != null && bar.bossFish))
+            {
+                return 1;
+            }
+
+            // In 1.6, Challenge Bait can override the usual double-fish result with its remaining fish count.
+            if (bar != null && bar.challengeBaitFishes > 0)
+            {
+                return bar.challengeBaitFishes;
+            }
+
+            if (_config.CaughtDoubleFishOnAnyBait || rod.GetBait()?.QualifiedItemId == WildBaitQualifiedItemId)
+            {
+                if (_config.AlwaysCaughtDoubleFish ||
+                    allowLuckyDoubleFish && Game1.random.NextDouble() < (0.25 + (Game1.player.DailyLuck / 2.0)))
+                {
+                    return 2;
+                }
+            }
+
+            return 1;
         }
 
         private bool ShouldForceGoldenTreasure()
