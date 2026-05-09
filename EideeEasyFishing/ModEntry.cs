@@ -131,6 +131,13 @@ namespace EideeEasyFishing
                 getValue: () => _config.AlwaysSonarBobber,
                 setValue: value => _config.AlwaysSonarBobber = value);
 
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_AlwaysMaxFishQuality_Name,
+                tooltip: I18n.Config_AlwaysMaxFishQuality_Description,
+                getValue: () => _config.AlwaysMaxFishQuality,
+                setValue: value => _config.AlwaysMaxFishQuality = value);
+
             configMenu.AddNumberOption(
                 mod: ModManifest,
                 name: I18n.Config_FishMovementSpeedMultiplier_Name,
@@ -171,6 +178,11 @@ namespace EideeEasyFishing
                 !bar.bobbers.Contains(SonarBobberQualifiedItemId))
             {
                 bar.bobbers.Add(SonarBobberQualifiedItemId);
+            }
+
+            if (_config.AlwaysMaxFishQuality)
+            {
+                bar.fishQuality = 4;
             }
 
             ApplyTreasureState(rod, bar);
@@ -240,6 +252,11 @@ namespace EideeEasyFishing
 
             if (Game1.activeClickableMenu is BobberBar bar && !_config.SkipMinigame)
             {
+                if (_config.AlwaysMaxFishQuality && bar.fishQuality != 4)
+                {
+                    bar.fishQuality = 4;
+                }
+
                 if (_delayTick > 0)
                 {
                     _delayTick--;

@@ -24,6 +24,8 @@
   "config.treasure-easy-caught.description": "ミニゲームで、宝箱のアイコンがバーを追いかけるようになります。",
   "config.always-sonar-bobber.name": "常にソナー付きの浮きを使う",
   "config.always-sonar-bobber.description": "ソナー付きの浮きを装備していなくても、ミニゲーム中に魚の正体パネルを表示します。",
+  "config.always-max-fish-quality.name": "常に最高品質の魚を釣り上げる",
+  "config.always-max-fish-quality.description": "クオリティ付きの浮きや釣り竿のグレード、パーフェクトの有無に関わらず、釣り上げた魚を必ずイリジウム品質にします。",
   "config.fish-movement-speed-multiplier.name": "魚の移動速度倍率",
   "config.fish-movement-speed-multiplier.description": "ミニゲームでの魚の移動速度にかかる倍率です。",
   "config.progress-bar-decrease-multiplier.name": "進捗ゲージの減少速度倍率",
