@@ -138,6 +138,13 @@ namespace EideeEasyFishing
                 getValue: () => _config.AlwaysMaxFishQuality,
                 setValue: value => _config.AlwaysMaxFishQuality = value);
 
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_AlwaysMaxFishSize_Name,
+                tooltip: I18n.Config_AlwaysMaxFishSize_Description,
+                getValue: () => _config.AlwaysMaxFishSize,
+                setValue: value => _config.AlwaysMaxFishSize = value);
+
             configMenu.AddNumberOption(
                 mod: ModManifest,
                 name: I18n.Config_FishMovementSpeedMultiplier_Name,
@@ -183,6 +190,12 @@ namespace EideeEasyFishing
             if (_config.AlwaysMaxFishQuality)
             {
                 bar.fishQuality = 4;
+            }
+
+            if (_config.AlwaysMaxFishSize)
+            {
+                // BobberBar constructor adds +1 to the rolled size, so a perfect maxFishSize roll yields maxFishSize+1.
+                bar.fishSize = bar.maxFishSize + 1;
             }
 
             ApplyTreasureState(rod, bar);
@@ -255,6 +268,15 @@ namespace EideeEasyFishing
                 if (_config.AlwaysMaxFishQuality && bar.fishQuality != 4)
                 {
                     bar.fishQuality = 4;
+                }
+
+                if (_config.AlwaysMaxFishSize)
+                {
+                    var targetSize = bar.maxFishSize + 1;
+                    if (bar.fishSize != targetSize)
+                    {
+                        bar.fishSize = targetSize;
+                    }
                 }
 
                 if (_delayTick > 0)

@@ -26,6 +26,8 @@
   "config.always-sonar-bobber.description": "Show the Sonar Bobber fish identity panel during the minigame, even without a Sonar Bobber tackle equipped.",
   "config.always-max-fish-quality.name": "Always Max Fish Quality",
   "config.always-max-fish-quality.description": "Force every caught fish to Iridium quality, ignoring Quality Bobber count, rod tier, and perfect-catch requirements.",
+  "config.always-max-fish-size.name": "Always Max Fish Size",
+  "config.always-max-fish-size.description": "Force every caught fish to its maximum recorded length, ignoring rod tier and the per-frame size penalty during the minigame.",
   "config.fish-movement-speed-multiplier.name": "Fish Movement Speed Multiplier",
   "config.fish-movement-speed-multiplier.description": "This is a multiplier for the fish's movement speed in the minigame.",
   "config.progress-bar-decrease-multiplier.name": "Progress Bar Decrease Multiplier",
