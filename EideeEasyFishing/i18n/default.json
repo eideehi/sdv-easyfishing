@@ -22,6 +22,8 @@
   "config.fish-easy-caught.description": "In the minigame, the fish icon automatically chases the bar.",
   "config.treasure-easy-caught.name": "Treasure Easy Caught",
   "config.treasure-easy-caught.description": "In the minigame, the treasure icon automatically chases the bar.",
+  "config.always-sonar-bobber.name": "Always Sonar Bobber",
+  "config.always-sonar-bobber.description": "Show the Sonar Bobber fish identity panel during the minigame, even without a Sonar Bobber tackle equipped.",
   "config.fish-movement-speed-multiplier.name": "Fish Movement Speed Multiplier",
   "config.fish-movement-speed-multiplier.description": "This is a multiplier for the fish's movement speed in the minigame.",
   "config.progress-bar-decrease-multiplier.name": "Progress Bar Decrease Multiplier",

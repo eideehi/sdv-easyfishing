@@ -12,6 +12,7 @@ namespace EideeEasyFishing
     internal class ModEntry : Mod
     {
         private const string WildBaitQualifiedItemId = "(O)774";
+        private const string SonarBobberQualifiedItemId = "(O)SonarBobber";
 
         private ModConfig _config;
         private ModConfigKeys _keys;
@@ -123,6 +124,13 @@ namespace EideeEasyFishing
                 getValue: () => _config.TreasureEasyCaught,
                 setValue: value => _config.TreasureEasyCaught = value);
 
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_AlwaysSonarBobber_Name,
+                tooltip: I18n.Config_AlwaysSonarBobber_Description,
+                getValue: () => _config.AlwaysSonarBobber,
+                setValue: value => _config.AlwaysSonarBobber = value);
+
             configMenu.AddNumberOption(
                 mod: ModManifest,
                 name: I18n.Config_FishMovementSpeedMultiplier_Name,
@@ -158,6 +166,12 @@ namespace EideeEasyFishing
             if (player is not { IsLocalPlayer: true }) return;
             if (player.CurrentTool is not FishingRod rod) return;
             if (args.NewMenu is not BobberBar bar) return;
+
+            if (_config.AlwaysSonarBobber && bar.bobbers != null &&
+                !bar.bobbers.Contains(SonarBobberQualifiedItemId))
+            {
+                bar.bobbers.Add(SonarBobberQualifiedItemId);
+            }
 
             ApplyTreasureState(rod, bar);
 
