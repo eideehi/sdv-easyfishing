@@ -514,9 +514,9 @@ namespace EideeEasyFishing
             if (rod.attachments.Count <= 0) return;
 
             var current = rod.attachments[0];
-            // Don't gift a free bait when the player equipped none.
-            if (current == null) return;
-            if (current.QualifiedItemId == MagicBaitQualifiedItemId) return;
+            // Mirror the tackle swap: insert a temporary Magic Bait even when no bait is equipped.
+            // The original (null included) is restored before any consumption, so nothing is gifted.
+            if (current?.QualifiedItemId == MagicBaitQualifiedItemId) return;
 
             var substitute = ItemRegistry.Create(MagicBaitQualifiedItemId) as StardewValley.Object;
             if (substitute == null) return;
