@@ -1,4 +1,4 @@
-{
+﻿{
   "message.config.reload": "[EideeEasyFishing] Config has been reloaded.",
   "config.section.general.name": "General",
   "config.bite-faster.name": "Bite Faster",
@@ -15,6 +15,8 @@
   "config.caught-double-fish-on-any-bait.description": "The chance to catch two fish is present with any bait used, and can be combined with \"Always Caught Double Fish\".",
   "config.always-magic-bait.name": "Always Magic Bait",
   "config.always-magic-bait.description": "Treat every cast as if Magic Bait were equipped, ignoring season and location restrictions on which fish can bite. The original bait is restored before consumption, so its stack and any Specific Bait targeting are preserved across normal fishing — but the Specific Bait effect is suppressed for the cast itself. Has no effect when no bait is equipped or when the rod cannot mount bait.",
+  "config.always-curiosity-lure.name": "Always Curiosity Lure",
+  "config.always-curiosity-lure.description": "Treat every cast as if a Curiosity Lure were equipped, shifting the catch distribution toward harder-to-catch fish. The substitute is placed in an empty tackle slot when one is available; otherwise it temporarily replaces the first tackle slot for the cast. Original tackle and durability are restored before any consumption. Has no effect on rods that cannot mount tackle (Bamboo / Fiberglass).",
   "config.always-max-cast-power.name": "Always Max Cast Power",
   "config.always-max-cast-power.description": "Casting power is always at its maximum.",
   "config.section.minigame.name": "Minigame",

@@ -14,6 +14,7 @@ namespace EideeEasyFishing
         private const string WildBaitQualifiedItemId = "(O)774";
         private const string SonarBobberQualifiedItemId = "(O)SonarBobber";
         private const string MagicBaitQualifiedItemId = "(O)908";
+        private const string CuriosityLureQualifiedItemId = "(O)856";
         private const string ChallengeBaitQualifiedItemId = "(O)ChallengeBait";
         private const string DeluxeBaitQualifiedItemId = "(O)DeluxeBait";
 
@@ -29,6 +30,8 @@ namespace EideeEasyFishing
         private FishingRod _swappedRod;
         private bool _baitSwapped;
         private StardewValley.Object _originalBait;
+        private int _swappedTackleSlot = -1;
+        private StardewValley.Object _originalTackle;
 
         public override void Entry(IModHelper helper)
         {
@@ -109,6 +112,13 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_AlwaysMagicBait_Description,
                 getValue: () => _config.AlwaysMagicBait,
                 setValue: value => _config.AlwaysMagicBait = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_AlwaysCuriosityLure_Name,
+                tooltip: I18n.Config_AlwaysCuriosityLure_Description,
+                getValue: () => _config.AlwaysCuriosityLure,
+                setValue: value => _config.AlwaysCuriosityLure = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
@@ -471,9 +481,11 @@ namespace EideeEasyFishing
             if (player.CurrentTool is not FishingRod rod) return;
             if (!rod.isFishing || rod.isNibbling || rod.isReeling || rod.pullingOutOfWater || rod.hit) return;
 
-            if (_swappedRod != null) return;
+            // Don't touch a different rod while we still hold a swap on the previous one.
+            if (_swappedRod != null && _swappedRod != rod) return;
 
             TrySwapBait(rod);
+            TrySwapTackle(rod);
         }
 
         private void TrySwapBait(FishingRod rod)
@@ -500,6 +512,45 @@ namespace EideeEasyFishing
             _swappedRod = rod;
         }
 
+        private void TrySwapTackle(FishingRod rod)
+        {
+            if (!_config.AlwaysCuriosityLure) return;
+            // See TrySwapBait: disable the tackle swap in multiplayer for the same net-field reason.
+            if (Context.IsMultiplayer) return;
+            if (!rod.CanUseTackle()) return;
+            if (_swappedTackleSlot >= 0) return;
+
+            var attachments = rod.attachments;
+            var slotCount = attachments.Count;
+            if (slotCount < 2) return;
+
+            // If any tackle slot already holds a Curiosity Lure, leave it alone.
+            for (var i = 1; i < slotCount; i++)
+            {
+                if (attachments[i]?.QualifiedItemId == CuriosityLureQualifiedItemId) return;
+            }
+
+            // Prefer an empty tackle slot so the player's existing tackle effect is preserved.
+            var slot = -1;
+            for (var i = 1; i < slotCount; i++)
+            {
+                if (attachments[i] == null)
+                {
+                    slot = i;
+                    break;
+                }
+            }
+            if (slot < 0) slot = 1;
+
+            var substitute = ItemRegistry.Create(CuriosityLureQualifiedItemId) as StardewValley.Object;
+            if (substitute == null) return;
+
+            _originalTackle = attachments[slot];
+            attachments[slot] = substitute;
+            _swappedTackleSlot = slot;
+            _swappedRod = rod;
+        }
+
         private void RestoreSwap()
         {
             var rod = _swappedRod;
@@ -514,6 +565,11 @@ namespace EideeEasyFishing
                 rod.attachments[0] = _originalBait;
             }
 
+            if (_swappedTackleSlot >= 0 && rod.attachments.Count > _swappedTackleSlot)
+            {
+                rod.attachments[_swappedTackleSlot] = _originalTackle;
+            }
+
             ClearSwapState();
         }
 
@@ -522,6 +578,8 @@ namespace EideeEasyFishing
             _swappedRod = null;
             _baitSwapped = false;
             _originalBait = null;
+            _swappedTackleSlot = -1;
+            _originalTackle = null;
         }
 
         private void OnSaving(object sender, SavingEventArgs e) => RestoreSwap();
