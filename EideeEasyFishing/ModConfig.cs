@@ -1,4 +1,4 @@
-﻿namespace EideeEasyFishing
+namespace EideeEasyFishing
 {
     internal class ModConfig
     {
@@ -15,6 +15,7 @@
         public bool AlwaysSonarBobber { get; set; } = false;
         public bool AlwaysMaxFishQuality { get; set; } = false;
         public bool AlwaysMaxFishSize { get; set; } = false;
+        public bool AlwaysMagicBait { get; set; } = false;
         public float FishMovementSpeedMultiplier { get; set; } = 0.5f;
         public float ProgressBarDecreaseMultiplier { get; set; } = 0.5f;
         public float ProgressBarIncreaseMultiplier { get; set; } = 1.25f;

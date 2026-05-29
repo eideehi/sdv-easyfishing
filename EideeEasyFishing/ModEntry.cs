@@ -13,6 +13,9 @@ namespace EideeEasyFishing
     {
         private const string WildBaitQualifiedItemId = "(O)774";
         private const string SonarBobberQualifiedItemId = "(O)SonarBobber";
+        private const string MagicBaitQualifiedItemId = "(O)908";
+        private const string ChallengeBaitQualifiedItemId = "(O)ChallengeBait";
+        private const string DeluxeBaitQualifiedItemId = "(O)DeluxeBait";
 
         private ModConfig _config;
         private ModConfigKeys _keys;
@@ -22,6 +25,10 @@ namespace EideeEasyFishing
         private float _prevBobberPosition;
         private float _prevDistanceFromCatching;
         private float _prevTreasureCatchLevel;
+
+        private FishingRod _swappedRod;
+        private bool _baitSwapped;
+        private StardewValley.Object _originalBait;
 
         public override void Entry(IModHelper helper)
         {
@@ -34,6 +41,10 @@ namespace EideeEasyFishing
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
             helper.Events.Input.ButtonPressed += OnButtonPressed;
             helper.Events.GameLoop.GameLaunched += OnGameLaunched;
+            helper.Events.GameLoop.Saving += OnSaving;
+            helper.Events.GameLoop.DayEnding += OnDayEnding;
+            helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+            helper.Events.Player.Warped += OnWarped;
         }
 
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
@@ -91,6 +102,13 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_CaughtDoubleFishOnAnyBait_Description,
                 getValue: () => _config.CaughtDoubleFishOnAnyBait,
                 setValue: value => _config.CaughtDoubleFishOnAnyBait = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_AlwaysMagicBait_Name,
+                tooltip: I18n.Config_AlwaysMagicBait_Description,
+                getValue: () => _config.AlwaysMagicBait,
+                setValue: value => _config.AlwaysMagicBait = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
@@ -181,6 +199,28 @@ namespace EideeEasyFishing
             if (player.CurrentTool is not FishingRod rod) return;
             if (args.NewMenu is not BobberBar bar) return;
 
+            // Capture original bait id before RestoreSwap clears it, so we can replay the
+            // BobberBar-constructor effects the synthetic Magic Bait swap suppressed.
+            var swappedAwayBaitId = (_baitSwapped && _swappedRod == rod) ? _originalBait?.QualifiedItemId : null;
+
+            // BobberBar opening means DoFunction's getFish has already run and the fish is locked.
+            // Restore now so doneFishing's consumption path sees the player's original bait/tackle.
+            RestoreSwap();
+
+            // Replay constructor-time bait effects that the swap masked. Wild Bait reads from
+            // rod.GetBait() at fade-out (post-restore) so it doesn't need replay; Specific Bait
+            // targeting is a documented accepted trade-off when AlwaysMagicBait is enabled.
+            if (swappedAwayBaitId == ChallengeBaitQualifiedItemId)
+            {
+                bar.challengeBaitFishes = 3;
+            }
+            else if (swappedAwayBaitId == DeluxeBaitQualifiedItemId)
+            {
+                bar.bobberBarHeight += 12;
+                // BobberBar constructor sets bobberBarPos = 568 - bobberBarHeight; keep them coupled.
+                bar.bobberBarPos = 568 - bar.bobberBarHeight;
+            }
+
             if (_config.AlwaysSonarBobber && bar.bobbers != null &&
                 !bar.bobbers.Contains(SonarBobberQualifiedItemId))
             {
@@ -233,6 +273,8 @@ namespace EideeEasyFishing
 
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs args)
         {
+            UpdateSwapState();
+
             var player = Game1.player;
             if (player is not { IsLocalPlayer: true }) return;
 
@@ -407,6 +449,92 @@ namespace EideeEasyFishing
             }
 
             return Game1.random.NextDouble() < 0.25 + Game1.player.team.AverageDailyLuck();
+        }
+
+        private void UpdateSwapState()
+        {
+            if (_swappedRod != null)
+            {
+                var localPlayer = Game1.player;
+                var stillCurrent = localPlayer != null && localPlayer.IsLocalPlayer &&
+                                   localPlayer.CurrentTool == _swappedRod;
+                // Do NOT restore on isNibbling: in 1.6.15 FishingRod.DoFunction calls getFish only
+                // after the player hits, which happens several ticks after isNibbling becomes true.
+                // Restoring here would remove the synthetic before getFish reads it.
+                if (!stillCurrent || !_swappedRod.isFishing)
+                {
+                    RestoreSwap();
+                }
+            }
+
+            if (Game1.player is not { IsLocalPlayer: true } player) return;
+            if (player.CurrentTool is not FishingRod rod) return;
+            if (!rod.isFishing || rod.isNibbling || rod.isReeling || rod.pullingOutOfWater || rod.hit) return;
+
+            if (_swappedRod != null) return;
+
+            TrySwapBait(rod);
+        }
+
+        private void TrySwapBait(FishingRod rod)
+        {
+            if (!_config.AlwaysMagicBait) return;
+            // FishingRod.attachments is a NetObjectArray; mutating it in multiplayer can propagate
+            // the synthetic to the host and persist on disconnect/remote save. Disable the swap
+            // outside single-player until a host-coordinated restore protocol is in place.
+            if (Context.IsMultiplayer) return;
+            if (!rod.CanUseBait()) return;
+            if (rod.attachments.Count <= 0) return;
+
+            var current = rod.attachments[0];
+            // Don't gift a free bait when the player equipped none.
+            if (current == null) return;
+            if (current.QualifiedItemId == MagicBaitQualifiedItemId) return;
+
+            var substitute = ItemRegistry.Create(MagicBaitQualifiedItemId) as StardewValley.Object;
+            if (substitute == null) return;
+
+            _originalBait = current;
+            rod.attachments[0] = substitute;
+            _baitSwapped = true;
+            _swappedRod = rod;
+        }
+
+        private void RestoreSwap()
+        {
+            var rod = _swappedRod;
+            if (rod == null)
+            {
+                ClearSwapState();
+                return;
+            }
+
+            if (_baitSwapped && rod.attachments.Count > 0)
+            {
+                rod.attachments[0] = _originalBait;
+            }
+
+            ClearSwapState();
+        }
+
+        private void ClearSwapState()
+        {
+            _swappedRod = null;
+            _baitSwapped = false;
+            _originalBait = null;
+        }
+
+        private void OnSaving(object sender, SavingEventArgs e) => RestoreSwap();
+        private void OnDayEnding(object sender, DayEndingEventArgs e) => RestoreSwap();
+        private void OnWarped(object sender, WarpedEventArgs e)
+        {
+            if (e.IsLocalPlayer) RestoreSwap();
+        }
+
+        private void OnReturnedToTitle(object sender, ReturnedToTitleEventArgs e)
+        {
+            // The rod object is no longer attached to a live save; drop references without writing.
+            ClearSwapState();
         }
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs args)

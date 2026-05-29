@@ -1,4 +1,4 @@
-﻿{
+{
   "message.config.reload": "[EideeEasyFishing] コンフィグがリロードされました。",
   "config.section.general.name": "一般",
   "config.bite-faster.name": "魚がすぐに餌に食いつく",
@@ -13,6 +13,8 @@
   "config.always-caught-double-fish.description": "ワイルドな釣りエサを使用している場合、必ず二尾の魚を釣り上げます。",
   "config.caught-double-fish-on-any-bait.name": "どんなエサでも二尾の魚を釣り上げる",
   "config.caught-double-fish-on-any-bait.description": "使用しているエサに関わらず、二尾の魚を釣り上げるチャンスが発生します。「必ず二尾の魚を釣り上げる」オプションと併用することが可能です。",
+  "config.always-magic-bait.name": "常にマジックエサを使う",
+  "config.always-magic-bait.description": "マジックエサを装備しているかのように扱い、季節や場所による魚の出現制限を無視してキャストします。元のエサは消費される前に元に戻されるため、エサのスタックや「ターゲット指定エサ」の対象設定は通常の釣り後にも維持されますが、そのキャスト中はターゲット指定エサの効果が一時的に無効になります。エサが装備されていない場合や、エサを装着できない釣り竿では何も起こりません。",
   "config.always-max-cast-power.name": "常に最大パワーでキャストする",
   "config.always-max-cast-power.description": "釣り竿のパワーゲージが常に最大になります。",
   "config.section.minigame.name": "ミニゲーム",
