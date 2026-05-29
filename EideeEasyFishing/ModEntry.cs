@@ -66,6 +66,13 @@ namespace EideeEasyFishing
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
+                name: I18n.Config_Enabled_Name,
+                tooltip: I18n.Config_Enabled_Description,
+                getValue: () => _config.Enabled,
+                setValue: value => _config.Enabled = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
                 name: I18n.Config_BiteFaster_Name,
                 tooltip: I18n.Config_BiteFaster_Description,
                 getValue: () => _config.BiteFaster,
@@ -208,6 +215,7 @@ namespace EideeEasyFishing
             if (player is not { IsLocalPlayer: true }) return;
             if (player.CurrentTool is not FishingRod rod) return;
             if (args.NewMenu is not BobberBar bar) return;
+            if (!_config.Enabled) return;
 
             // Capture original bait id before RestoreSwap clears it, so we can replay the
             // BobberBar-constructor effects the synthetic Magic Bait swap suppressed.
@@ -283,6 +291,13 @@ namespace EideeEasyFishing
 
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs args)
         {
+            if (!_config.Enabled)
+            {
+                // Defensive: undo any in-flight swap if the mod was disabled outside the hotkey path.
+                RestoreSwap();
+                return;
+            }
+
             UpdateSwapState();
 
             var player = Game1.player;
@@ -604,6 +619,24 @@ namespace EideeEasyFishing
                 _config = Helper.ReadConfig<ModConfig>();
                 _keys = _config.Controls.ParseControls();
                 Game1.addHUDMessage(new HUDMessage(I18n.Message_Config_Reload(), HUDMessage.error_type)
+                {
+                    noIcon = true,
+                    timeLeft = HUDMessage.defaultTime
+                });
+            }
+            else if (args.Button == _keys.ToggleMod)
+            {
+                _config.Enabled = !_config.Enabled;
+                Helper.WriteConfig(_config);
+
+                // Disabling mid-cast must not leave a synthetic bait/tackle in the net-synced rod.
+                if (!_config.Enabled)
+                {
+                    RestoreSwap();
+                }
+
+                var text = _config.Enabled ? I18n.Message_Mod_Enabled() : I18n.Message_Mod_Disabled();
+                Game1.addHUDMessage(new HUDMessage(text, HUDMessage.error_type)
                 {
                     noIcon = true,
                     timeLeft = HUDMessage.defaultTime

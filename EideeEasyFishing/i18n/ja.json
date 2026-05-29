@@ -1,6 +1,10 @@
 ﻿{
   "message.config.reload": "[EideeEasyFishing] コンフィグがリロードされました。",
+  "message.mod.enabled": "[EideeEasyFishing] Modが有効になりました。",
+  "message.mod.disabled": "[EideeEasyFishing] Modが無効になりました。",
   "config.section.general.name": "一般",
+  "config.enabled.name": "Modを有効にする",
+  "config.enabled.description": "Mod全体のマスタースイッチです。無効にすると、再度有効にするまで以下のすべての機能が抑制されます。ゲーム中に「Modのオンオフを切り替える」キー(初期設定はF6)でも切り替えられます。",
   "config.bite-faster.name": "魚がすぐに餌に食いつく",
   "config.bite-faster.description": "魚が餌に食いつくまでの時間を短縮します。",
   "config.hit-automatically.name": "自動でヒット処理を行う",

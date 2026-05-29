@@ -2,6 +2,7 @@
 {
     internal class ModConfig
     {
+        public bool Enabled { get; set; } = true;
         public bool BiteFaster { get; set; } = false;
         public bool HitAutomatically { get; set; } = false;
         public bool SkipMinigame { get; set; } = false;

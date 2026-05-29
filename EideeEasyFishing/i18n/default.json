@@ -1,6 +1,10 @@
 ﻿{
   "message.config.reload": "[EideeEasyFishing] Config has been reloaded.",
+  "message.mod.enabled": "[EideeEasyFishing] The mod is now enabled.",
+  "message.mod.disabled": "[EideeEasyFishing] The mod is now disabled.",
   "config.section.general.name": "General",
+  "config.enabled.name": "Mod Enabled",
+  "config.enabled.description": "Master switch for the entire mod. When disabled, every feature below is suppressed until it is re-enabled. Can also be toggled in-game with the Toggle Mod key (default F6).",
   "config.bite-faster.name": "Bite Faster",
   "config.bite-faster.description": "Waiting for fish to bite the bait is no longer necessary.",
   "config.hit-automatically.name": "Hit Automatically",

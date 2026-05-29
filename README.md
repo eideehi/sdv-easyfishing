@@ -5,7 +5,7 @@ Customizable Mod for easy fishing.
 This Mod was created to make fishing easier. You can customize from your configuration, such as skipping minigame, minigame make easier, always found a Treasure, always double fishing.
 
 ## Config:
-During the game, you can reload the configuration by pressing the F5 key. It is possible to change the keys from the config.
+During the game, you can reload the configuration by pressing the F5 key, and turn the entire mod on or off by pressing the F6 key. It is possible to change the keys from the config.
 Starting with version 1.1.1, you can now edit the configuration in the "[Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098)"
 
 | Property                         | Description                                                                                                                     |
@@ -30,6 +30,7 @@ Starting with version 1.1.1, you can now edit the configuration in the "[Generic
 | Progress Bar Increase Multiplier | This modifies how quickly the capture progress bar increases in the minigame.                                                   |
 | Treasure Catch Speed Multiplier  | This is a multiplier for the speed at which treasure is caught in the minigame.                                                 |
 | Reload Config                    | This sets the key for reloading the configuration.                                                                              |
+| Toggle Mod                       | This sets the key for turning the entire mod on or off at runtime, without opening the config menu.                             |
 
 ## Stardew Valley 1.6 Notes:
 Easy Fishing now covers the catch-side mechanics introduced in 1.6:

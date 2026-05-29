@@ -7,6 +7,7 @@ namespace EideeEasyFishing
     internal class ModConfigRawKeys
     {
         public string ReloadConfig { get; set; } = SButton.F5.ToString();
+        public string ToggleMod { get; set; } = SButton.F6.ToString();
 
         private static SButton ParseButton(string button, SButton defaultButton)
         {
@@ -20,7 +21,9 @@ namespace EideeEasyFishing
 
         public ModConfigKeys ParseControls()
         {
-            return new ModConfigKeys(reloadConfig: ParseButton(ReloadConfig, SButton.F5));
+            return new ModConfigKeys(
+                reloadConfig: ParseButton(ReloadConfig, SButton.F5),
+                toggleMod: ParseButton(ToggleMod, SButton.F6));
         }
     }
 }
