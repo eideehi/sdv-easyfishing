@@ -7,6 +7,13 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
+  <!-- Resolve the Stardew Valley install path from the SDV_GAME_DIR environment variable.
+       ModBuildConfig only reads the 'GamePath' property, so bridge the env var here. When
+       SDV_GAME_DIR is unset this is a no-op, and ModBuildConfig's autodetection runs as usual. -->
+  <PropertyGroup Condition="'$(GamePath)' == '' AND '$(SDV_GAME_DIR)' != ''">
+    <GamePath>$(SDV_GAME_DIR)</GamePath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.1.1" />
     <PackageReference Include="Pathoschild.Stardew.ModTranslationClassBuilder" Version="2.0.1" />
