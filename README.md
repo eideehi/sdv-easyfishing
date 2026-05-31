@@ -51,10 +51,7 @@ Easy Fishing now covers the catch-side mechanics introduced in 1.6:
 The progress bar multipliers affect the amount the bar changes from frame to frame. They do not replace the game's own bait, lure, or penalty rules.
 
 ## Contacts:
-- [Issues - GitHub](https://github.com/eideehi/sdv-easyfishing/issues)
-  Only bug reports are accepted under Issues.
-- [eidee.net - Discord server](https://discord.gg/DDQqxkK7s6)
-  Questions, suggestions, comments, etc. can be directed here.
+[Open an issue](https://github.com/eideehi/sdv-easyfishing/issues) for bug reports, questions, suggestions, and requests.
 
 ## Credits:
 * Dependencies:
