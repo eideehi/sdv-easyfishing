@@ -1,6 +1,5 @@
 name: Bug report
 description: Report a bug or broken behavior
-title: ""
 body:
   - type: markdown
     attributes:

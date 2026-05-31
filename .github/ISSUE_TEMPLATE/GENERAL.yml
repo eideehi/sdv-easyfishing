@@ -1,6 +1,5 @@
 name: Question / Suggestion / Request
 description: Ask a question, share feedback, or make a request
-title: ""
 body:
   - type: markdown
     attributes:
