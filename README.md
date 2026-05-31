@@ -8,6 +8,8 @@ This Mod was created to make fishing easier. You can customize from your configu
 During the game, you can reload the configuration by pressing the F5 key, and turn the entire mod on or off by pressing the F6 key. It is possible to change the keys from the config.
 Starting with version 1.1.1, you can now edit the configuration in the "[Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098)"
 
+![Easy Fishing options in Generic Mod Config Menu](docs/images/config-menu.jpg)
+
 | Property                         | Description                                                                                                                     |
 | ------------------------------   | ---------------------------------------------------------------------------------------------------------------------           |
 | Bite Faster                      | Waiting for fish to bite the bait is no longer necessary.                                                                       |
