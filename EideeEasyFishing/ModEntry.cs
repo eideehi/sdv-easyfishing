@@ -310,6 +310,13 @@ namespace EideeEasyFishing
                     rod.castingTimerSpeed = 0;
                     rod.castingPower = 1;
                 }
+                else if (rod.castingTimerSpeed == 0f)
+                {
+                    // Restore the vanilla charge speed we zero out above. castingTimerSpeed is
+                    // [XmlIgnore] (default 0.001f) and never reset per-cast, so leaving it at 0
+                    // would pin the cast bar at 0 once the option is off, until the rod is rebuilt.
+                    rod.castingTimerSpeed = 0.001f;
+                }
 
                 if (_config.BiteFaster && !rod.isNibbling && rod.isFishing && !rod.isReeling &&
                     !rod.pullingOutOfWater && !rod.hit)
