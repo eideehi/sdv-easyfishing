@@ -18,6 +18,9 @@
         public bool AlwaysMaxFishSize { get; set; } = false;
         public bool AlwaysMagicBait { get; set; } = false;
         public bool AlwaysCuriosityLure { get; set; } = false;
+        public bool AutoRecast { get; set; } = false;
+        public int StopAutoRecastAtTime { get; set; } = 0;
+        public bool AutoCollectFishingTreasure { get; set; } = false;
         public float FishMovementSpeedMultiplier { get; set; } = 0.5f;
         public float ProgressBarDecreaseMultiplier { get; set; } = 0.5f;
         public float ProgressBarIncreaseMultiplier { get; set; } = 1.25f;

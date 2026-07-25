@@ -8,6 +8,7 @@ namespace EideeEasyFishing
     {
         public string ReloadConfig { get; set; } = SButton.F5.ToString();
         public string ToggleMod { get; set; } = SButton.F6.ToString();
+        public string StopAutoRecast { get; set; } = SButton.None.ToString();
 
         private static SButton ParseButton(string button, SButton defaultButton)
         {
@@ -23,7 +24,10 @@ namespace EideeEasyFishing
         {
             return new ModConfigKeys(
                 reloadConfig: ParseButton(ReloadConfig, SButton.F5),
-                toggleMod: ParseButton(ToggleMod, SButton.F6));
+                toggleMod: ParseButton(ToggleMod, SButton.F6),
+                stopAutoRecast: ParseButton(StopAutoRecast, SButton.None));
         }
+
+        public SButton ParseStopAutoRecast() => ParseButton(StopAutoRecast, SButton.None);
     }
 }
