@@ -13,6 +13,9 @@
         public bool AlwaysCaughtDoubleFish { get; set; } = false;
         public bool CaughtDoubleFishOnAnyBait { get; set; } = false;
         public bool AlwaysMaxCastPower { get; set; } = false;
+        public bool CastAtFishingBubbles { get; set; } = false;
+        public bool WidenBubbleCastAssist { get; set; } = false;
+        public bool ShowFishingBubbleMarker { get; set; } = false;
         public bool AlwaysSonarBobber { get; set; } = false;
         public bool AlwaysMaxFishQuality { get; set; } = false;
         public bool AlwaysMaxFishSize { get; set; } = false;

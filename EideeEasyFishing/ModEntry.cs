@@ -1,6 +1,7 @@
 ﻿using System;
 using GenericModConfigMenu;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley.Constants;
@@ -21,6 +22,29 @@ namespace EideeEasyFishing
         private const string DeluxeBaitQualifiedItemId = "(O)DeluxeBait";
         private const int AutoAdvanceCatchRetryTicks = 30;
         private const int AutoAdvanceCatchMaxAttempts = 5;
+
+        // The game's nominal tick rate. Used to turn a bobber's flight time into the number of
+        // times FishingRod.tickUpdate can steer it, which is what bounds how far a real player
+        // could have drifted the bobber sideways. This is an estimate, not an exact count: the
+        // flight sprite ends on the first update where its accumulated real elapsed time passes
+        // its interval, so uneven frame pacing changes how many steering ticks actually happen.
+        // Only the sideways tolerance shifts as a result; where a cast lands is unaffected, and
+        // the marker is computed from the same estimate so the two always agree on screen.
+        private const float MillisecondsPerTick = 1000f / 60f;
+
+        // Vanilla lets a cast drift sideways by this much per tick while the bobber is airborne:
+        // 4px for a left/right cast, 2px for an up/down cast. See FishingRod.tickUpdate.
+        private const float SidewaysDriftPerTickHorizontal = 4f;
+        private const float SidewaysDriftPerTickVertical = 2f;
+
+        // Shortest distance a cast can travel. The horizontal branch of the launch code subtracts
+        // 8px from its clamped minimum; the vertical branch does not.
+        private const float MinimumCastReachHorizontal = 120f;
+        private const float MinimumCastReachVertical = 128f;
+
+        private const int BubbleMarkerThickness = 4;
+        private const int BubbleMarkerDashLength = 8;
+        private const int BubbleMarkerDashCount = 5;
 
         private ModConfig _config;
         private ModConfigKeys _keys;
@@ -49,6 +73,14 @@ namespace EideeEasyFishing
         private int _autoAdvanceCatchAttempts;
         private int _autoAdvanceCatchCooldownTicks;
 
+        private FishingRod _bubbleAssistRod;
+        private Vector2 _bubbleAssistTarget;
+        private Vector2 _bubbleAssistVisualCorrection;
+        private Vector2 _bubbleAssistPinnedPosition;
+        private float _bubbleAssistAppliedFraction;
+        private bool _prevCastedInAir;
+        private bool _castOwnedByAutoRecast;
+
         public override void Entry(IModHelper helper)
         {
             I18n.Init(helper.Translation);
@@ -58,6 +90,7 @@ namespace EideeEasyFishing
 
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.Display.RenderedHud += OnRenderedHud;
+            helper.Events.Display.RenderedWorld += OnRenderedWorld;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
             helper.Events.Input.ButtonPressed += OnButtonPressed;
             helper.Events.GameLoop.GameLaunched += OnGameLaunched;
@@ -150,6 +183,27 @@ namespace EideeEasyFishing
                 tooltip: I18n.Config_AlwaysMaxCastPower_Description,
                 getValue: () => _config.AlwaysMaxCastPower,
                 setValue: value => _config.AlwaysMaxCastPower = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_CastAtFishingBubbles_Name,
+                tooltip: I18n.Config_CastAtFishingBubbles_Description,
+                getValue: () => _config.CastAtFishingBubbles,
+                setValue: value => _config.CastAtFishingBubbles = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_WidenBubbleCastAssist_Name,
+                tooltip: I18n.Config_WidenBubbleCastAssist_Description,
+                getValue: () => _config.WidenBubbleCastAssist,
+                setValue: value => _config.WidenBubbleCastAssist = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: I18n.Config_ShowFishingBubbleMarker_Name,
+                tooltip: I18n.Config_ShowFishingBubbleMarker_Description,
+                getValue: () => _config.ShowFishingBubbleMarker,
+                setValue: value => _config.ShowFishingBubbleMarker = value);
 
             configMenu.AddBoolOption(
                 mod: ModManifest,
@@ -371,6 +425,75 @@ namespace EideeEasyFishing
             Utility.drawTextWithShadow(args.SpriteBatch, text, Game1.smallFont, position, Game1.textColor);
         }
 
+        private void OnRenderedWorld(object sender, RenderedWorldEventArgs args)
+        {
+            if (!_config.Enabled || !_config.ShowFishingBubbleMarker || !Context.IsWorldReady) return;
+            if (Game1.player is not { IsLocalPlayer: true } player) return;
+
+            var location = player.currentLocation;
+            var bubble = location?.fishSplashPoint.Value ?? Point.Zero;
+            if (bubble == Point.Zero) return;
+            if (!Utility.isOnScreen(bubble, 0, location)) return;
+
+            // While the power bar is filling, answer "will this cast reach it?"; the rest of the
+            // time, answer "could I reach it if I charged fully?".
+            var rod = player.CurrentTool as FishingRod;
+            var castingPower = rod is { isTimingCast: true } ? Math.Clamp(rod.castingPower, 0f, 1f) : 1f;
+            PredictCastGeometry(player, castingPower, out var reach, out var flightMilliseconds);
+            var withinRange = IsBubbleWithinAssistRange(player, bubble, reach, flightMilliseconds);
+
+            // RenderedWorld hands over a sprite batch with no viewport transform applied, so world
+            // pixels have to be converted the same way the game converts its own world sprites.
+            var topLeft = Game1.GlobalToLocal(Game1.viewport, new Vector2(bubble.X * 64, bubble.Y * 64));
+            if (withinRange)
+            {
+                var elapsed = Game1.currentGameTime?.TotalGameTime.TotalMilliseconds ?? 0.0;
+                var pulse = 0.55f + 0.45f * (float)Math.Sin(elapsed / 200.0);
+                DrawBubbleMarker(args.SpriteBatch, topLeft, Color.LimeGreen * pulse, dashed: false);
+            }
+            else
+            {
+                DrawBubbleMarker(args.SpriteBatch, topLeft, Color.Gray * 0.6f, dashed: true);
+            }
+        }
+
+        private static void DrawBubbleMarker(SpriteBatch spriteBatch, Vector2 topLeft, Color color,
+            bool dashed)
+        {
+            const int size = 64;
+            var x = (int)topLeft.X;
+            var y = (int)topLeft.Y;
+
+            if (!dashed)
+            {
+                spriteBatch.Draw(Game1.staminaRect, new Rectangle(x, y, size, BubbleMarkerThickness), color);
+                spriteBatch.Draw(Game1.staminaRect,
+                    new Rectangle(x, y + size - BubbleMarkerThickness, size, BubbleMarkerThickness), color);
+                spriteBatch.Draw(Game1.staminaRect, new Rectangle(x, y, BubbleMarkerThickness, size), color);
+                spriteBatch.Draw(Game1.staminaRect,
+                    new Rectangle(x + size - BubbleMarkerThickness, y, BubbleMarkerThickness, size), color);
+                return;
+            }
+
+            // Spaced so the first and last dash sit flush with the ends of each edge, otherwise
+            // the far corners are left open and the frame reads as broken rather than dashed.
+            var spacing = (size - BubbleMarkerDashLength) / (BubbleMarkerDashCount - 1);
+            for (var i = 0; i < BubbleMarkerDashCount; i++)
+            {
+                var offset = i * spacing;
+                spriteBatch.Draw(Game1.staminaRect,
+                    new Rectangle(x + offset, y, BubbleMarkerDashLength, BubbleMarkerThickness), color);
+                spriteBatch.Draw(Game1.staminaRect,
+                    new Rectangle(x + offset, y + size - BubbleMarkerThickness, BubbleMarkerDashLength,
+                        BubbleMarkerThickness), color);
+                spriteBatch.Draw(Game1.staminaRect,
+                    new Rectangle(x, y + offset, BubbleMarkerThickness, BubbleMarkerDashLength), color);
+                spriteBatch.Draw(Game1.staminaRect,
+                    new Rectangle(x + size - BubbleMarkerThickness, y + offset, BubbleMarkerThickness,
+                        BubbleMarkerDashLength), color);
+            }
+        }
+
         private void OnUpdateTicked(object sender, UpdateTickedEventArgs args)
         {
             if (!_config.Enabled)
@@ -378,11 +501,15 @@ namespace EideeEasyFishing
                 // Defensive: undo any in-flight swap if the mod was disabled outside the hotkey path.
                 RestoreSwap();
                 ClearAutoRecast();
+                ResetBubbleCastAssist();
                 return;
             }
 
             UpdateSwapState();
             UpdateAutoRecast();
+            // Runs after UpdateAutoRecast so _castOwnedByAutoRecast is already set for a cast the
+            // loop dispatched on this same tick.
+            UpdateBubbleCastAssist();
             UpdateFishingTreasureAutoCollect();
 
             var player = Game1.player;
@@ -635,6 +762,230 @@ namespace EideeEasyFishing
             player.BeginUsingTool();
             _autoRecastDispatched = true;
             _autoRecastForcePower = true;
+            // Marks this cast as loop-initiated for the whole of its life. The two flags above
+            // cannot serve that purpose: both are already cleared by the time the bobber leaves
+            // the rod, which is the moment the bubble assist decides whether to engage.
+            _castOwnedByAutoRecast = true;
+        }
+
+        private void UpdateBubbleCastAssist()
+        {
+            if (!Context.IsWorldReady)
+            {
+                ResetBubbleCastAssist();
+                return;
+            }
+
+            var player = Game1.player;
+            var rod = player is { IsLocalPlayer: true } ? player.CurrentTool as FishingRod : null;
+
+            var bobberInAir = rod?.castedButBobberStillInAir ?? false;
+            var bobberWasInAir = _prevCastedInAir;
+            _prevCastedInAir = bobberInAir;
+
+            if (!bobberInAir)
+            {
+                // Stop writing the moment the bobber lands. From here the game animates bobber.Y
+                // itself every tick, and holding it at a fixed point would freeze that bob.
+                ClearBubbleCastAssist();
+                if (bobberWasInAir || rod == null || !rod.inUse())
+                {
+                    _castOwnedByAutoRecast = false;
+                }
+
+                return;
+            }
+
+            if (_bubbleAssistRod == null)
+            {
+                // Decide once, on the tick the bobber leaves the rod. A later tick would be
+                // reading a launch point the game has already nudged sideways.
+                if (bobberWasInAir || !_config.CastAtFishingBubbles || _castOwnedByAutoRecast) return;
+                if (!TryStartBubbleCastAssist(player, rod)) return;
+            }
+            else if (_bubbleAssistRod != rod)
+            {
+                ClearBubbleCastAssist();
+                return;
+            }
+
+            // SMAPI raises UpdateTicked after the game has updated, so this absolute write lands
+            // on top of whatever sideways nudge the game applied this tick.
+            var nudgeThisTick = rod.bobber.Value - _bubbleAssistPinnedPosition;
+            rod.bobber.Set(_bubbleAssistTarget);
+            _bubbleAssistPinnedPosition = _bubbleAssistTarget;
+
+            if (rod.animations.Count > 0)
+            {
+                var sprite = rod.animations[0];
+                if (sprite.interval > 0f)
+                {
+                    // Spread the correction across the flight instead of snapping the bobber
+                    // sprite, so the throw still reads as one arc. Run one tick ahead of the
+                    // sprite's own clock: the tick that ends the flight removes the sprite and
+                    // lands the cast inside the game's update, before this code runs again, so a
+                    // correction that only finished at the true end would never finish at all and
+                    // the bobber would jump the last of the distance on landing.
+                    var progress = Math.Clamp(
+                        (sprite.timer + MillisecondsPerTick) / sprite.interval, 0f, 1f);
+                    var step = _bubbleAssistVisualCorrection *
+                               (progress - _bubbleAssistAppliedFraction);
+
+                    // The game moves the sprite by the same nudge it just gave the bobber. The
+                    // bobber is pinned, so take that movement back off the sprite as well; a
+                    // player leaning on a movement key would otherwise watch the bobber drift
+                    // away from the point the cast actually lands on.
+                    sprite.position += step - nudgeThisTick;
+                    _bubbleAssistAppliedFraction = progress;
+                }
+            }
+        }
+
+        private bool TryStartBubbleCastAssist(Farmer player, FishingRod rod)
+        {
+            var location = player.currentLocation;
+            if (location == null) return false;
+
+            var bubble = location.fishSplashPoint.Value;
+            if (bubble == Point.Zero) return false;
+            if (!Utility.isOnScreen(bubble, 0, location)) return false;
+
+            // A bubble is not guaranteed to sit on fishable water: the spawn test allows tiles
+            // that isTileFishable rejects. Casting at one would spend stamina for nothing and
+            // wake the game's own "nudge onto water" correction.
+            if (!location.canFishHere() || !location.isTileFishable(bubble.X, bubble.Y)) return false;
+
+            if (rod.animations.Count == 0) return false;
+            var flightMilliseconds = rod.animations[0].interval;
+            if (flightMilliseconds <= 0f) return false;
+
+            // The reach of this particular cast, taken from the point the game just threw at.
+            // Only the component along the cast direction is read: every sideways nudge the game
+            // applies is perpendicular to it, so this stays exact even after one tick of drift.
+            var standingPixel = player.StandingPixel;
+            var launch = rod.bobber.Value;
+            var reach = player.FacingDirection switch
+            {
+                1 => launch.X - standingPixel.X,
+                3 => standingPixel.X - launch.X,
+                2 => launch.Y - standingPixel.Y,
+                _ => standingPixel.Y - launch.Y
+            };
+
+            if (!IsBubbleWithinAssistRange(player, bubble, reach, flightMilliseconds)) return false;
+
+            _bubbleAssistRod = rod;
+            _bubbleAssistTarget = GetBubbleTileCenter(bubble);
+            _bubbleAssistVisualCorrection = _bubbleAssistTarget - launch;
+            _bubbleAssistPinnedPosition = launch;
+            _bubbleAssistAppliedFraction = 0f;
+            return true;
+        }
+
+        /// <summary>Aims at the middle of the bubble tile, which is the one point that satisfies
+        /// all three of the game's bubble rewards at once: the faster bite, the deeper-water fish
+        /// roll, and the fish frenzy's guaranteed species.</summary>
+        private static Vector2 GetBubbleTileCenter(Point bubble)
+        {
+            return new Vector2(bubble.X * 64 + 32, bubble.Y * 64 + 32);
+        }
+
+        private bool IsBubbleWithinAssistRange(Farmer player, Point bubble, float reach,
+            float flightMilliseconds)
+        {
+            if (reach <= 0f || flightMilliseconds <= 0f) return false;
+
+            var standingPixel = player.StandingPixel;
+            var target = GetBubbleTileCenter(bubble);
+            var castsSideways = player.FacingDirection == 1 || player.FacingDirection == 3;
+
+            float distanceAhead;
+            float distanceAcross;
+            if (castsSideways)
+            {
+                distanceAhead = player.FacingDirection == 1
+                    ? target.X - standingPixel.X
+                    : standingPixel.X - target.X;
+                distanceAcross = Math.Abs(target.Y - standingPixel.Y);
+            }
+            else
+            {
+                distanceAhead = player.FacingDirection == 2
+                    ? target.Y - standingPixel.Y
+                    : standingPixel.Y - target.Y;
+                distanceAcross = Math.Abs(target.X - standingPixel.X);
+            }
+
+            if (_config.WidenBubbleCastAssist)
+            {
+                // Widening lifts the sideways limit only. The distance test still uses this
+                // cast's own reach, so the bobber never travels further than it would have.
+                return distanceAhead >= distanceAcross &&
+                       Vector2.Distance(new Vector2(standingPixel.X, standingPixel.Y), target) <= reach;
+            }
+
+            // Only what the player could have hit by hand: a distance the cast can be charged to,
+            // and a sideways offset no larger than the drift they could have steered in flight.
+            var minimumReach = castsSideways ? MinimumCastReachHorizontal : MinimumCastReachVertical;
+            if (distanceAhead < minimumReach || distanceAhead > reach) return false;
+
+            var driftPerTick = castsSideways
+                ? SidewaysDriftPerTickHorizontal
+                : SidewaysDriftPerTickVertical;
+            return distanceAcross <= driftPerTick * (flightMilliseconds / MillisecondsPerTick);
+        }
+
+        /// <summary>Reproduces the reach and flight time the game computes when a bobber is
+        /// thrown. The marker needs these before a cast exists; the assist itself reads the real
+        /// values off the cast in flight instead.</summary>
+        private static void PredictCastGeometry(Farmer player, float castingPower, out float reach,
+            out float flightMilliseconds)
+        {
+            var addedDistance = player.FishingLevel >= 15 ? 4 :
+                player.FishingLevel >= 8 ? 3 :
+                player.FishingLevel >= 4 ? 2 :
+                player.FishingLevel >= 1 ? 1 : 0;
+            const float gravity = 0.005f;
+
+            if (player.FacingDirection == 1 || player.FacingDirection == 3)
+            {
+                reach = Math.Max(128f, castingPower * (addedDistance + 4) * 64f) - 8f;
+                var launchSpeed = (float)(reach * Math.Sqrt(gravity / (2f * (reach + 96f))));
+                flightMilliseconds = 2f * (launchSpeed / gravity) +
+                                     (float)((Math.Sqrt(launchSpeed * launchSpeed + 2f * gravity * 96f) -
+                                              launchSpeed) / gravity);
+                return;
+            }
+
+            reach = Math.Max(128f, castingPower * (addedDistance + 3) * 64f);
+            var offset = 0f - reach;
+            var arcHeight = Math.Abs(offset - 64f);
+            if (player.FacingDirection == 0)
+            {
+                offset = 0f - offset;
+                arcHeight += 64f;
+            }
+
+            var verticalSpeed = (float)Math.Sqrt(2f * gravity * arcHeight);
+            flightMilliseconds =
+                (float)(Math.Sqrt(2f * (arcHeight - offset) / gravity) + verticalSpeed / gravity) * 1.05f;
+            if (player.FacingDirection == 0) flightMilliseconds *= 1.05f;
+        }
+
+        private void ClearBubbleCastAssist()
+        {
+            _bubbleAssistRod = null;
+            _bubbleAssistTarget = Vector2.Zero;
+            _bubbleAssistVisualCorrection = Vector2.Zero;
+            _bubbleAssistPinnedPosition = Vector2.Zero;
+            _bubbleAssistAppliedFraction = 0f;
+        }
+
+        private void ResetBubbleCastAssist()
+        {
+            ClearBubbleCastAssist();
+            _prevCastedInAir = false;
+            _castOwnedByAutoRecast = false;
         }
 
         private bool UpdateRodUseState(FishingRod rod, out bool rodInUse)
@@ -977,6 +1328,7 @@ namespace EideeEasyFishing
         {
             RestoreSwap();
             ClearAutoRecast();
+            ResetBubbleCastAssist();
         }
 
         private void OnWarped(object sender, WarpedEventArgs e)
@@ -985,6 +1337,7 @@ namespace EideeEasyFishing
             {
                 RestoreSwap();
                 ClearAutoRecast();
+                ResetBubbleCastAssist();
             }
         }
 
@@ -993,6 +1346,7 @@ namespace EideeEasyFishing
             // The rod object is no longer attached to a live save; drop references without writing.
             ClearSwapState();
             ClearAutoRecast();
+            ResetBubbleCastAssist();
         }
 
         private void OnButtonPressed(object sender, ButtonPressedEventArgs args)
