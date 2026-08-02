@@ -441,7 +441,12 @@ namespace EideeEasyFishing
             var rod = player.CurrentTool as FishingRod;
             var castingPower = rod is { isTimingCast: true } ? Math.Clamp(rod.castingPower, 0f, 1f) : 1f;
             PredictCastGeometry(player, castingPower, out var reach, out var flightMilliseconds);
-            var withinRange = IsBubbleWithinAssistRange(player, bubble, reach, flightMilliseconds);
+            // Mirror the assist's own decline conditions so the marker is an honest preview: the
+            // assist also refuses a bubble whose tile is not fishable (TryStartBubbleCastAssist),
+            // and a live bubble is not guaranteed to sit on fishable water.
+            var withinRange = location.canFishHere() &&
+                              location.isTileFishable(bubble.X, bubble.Y) &&
+                              IsBubbleWithinAssistRange(player, bubble, reach, flightMilliseconds);
 
             // RenderedWorld hands over a sprite batch with no viewport transform applied, so world
             // pixels have to be converted the same way the game converts its own world sprites.
