@@ -219,7 +219,7 @@ namespace EideeEasyFishing
                 getValue: () => StopTimeToStep(_config.StopAutoRecastAtTime),
                 setValue: value => _config.StopAutoRecastAtTime = StopTimeStepToTime((int)value),
                 min: 0,
-                max: 121,
+                max: 120,
                 interval: 1,
                 formatValue: value => value <= 0
                     ? I18n.Config_StopAutoRecastAtTime_Disabled()
@@ -397,13 +397,14 @@ namespace EideeEasyFishing
 
             var stopButton = GetStopAutoRecastButton();
             var hasStopKey = stopButton != SButton.None;
-            var hasStopTime = IsValidStopTime(_config.StopAutoRecastAtTime);
+            var stopTime = GetEffectiveStopTime(_config.StopAutoRecastAtTime);
+            var hasStopTime = stopTime != 0;
             string text;
             if (hasStopKey && hasStopTime)
             {
                 text = I18n.Message_AutoRecast_Hud_KeyTime(
                     stopButton.ToString(),
-                    Game1.getTimeOfDayString(_config.StopAutoRecastAtTime));
+                    Game1.getTimeOfDayString(stopTime));
             }
             else if (hasStopKey)
             {
@@ -412,7 +413,7 @@ namespace EideeEasyFishing
             else if (hasStopTime)
             {
                 text = I18n.Message_AutoRecast_Hud_Time(
-                    Game1.getTimeOfDayString(_config.StopAutoRecastAtTime));
+                    Game1.getTimeOfDayString(stopTime));
             }
             else
             {
@@ -690,8 +691,8 @@ namespace EideeEasyFishing
             var readyToRecast = !_autoRecastDispatched && !rodInUse &&
                                 !autoRecastRod.pullingOutOfWater && !autoRecastRod.showingTreasure &&
                                 !autoRecastRod.castedButBobberStillInAir && !autoRecastRod.hit &&
-                                Context.IsPlayerFree && !player.UsingTool && player.freezePause <= 0 &&
-                                Game1.activeClickableMenu == null;
+                                Context.IsPlayerFree && !Game1.eventUp && !player.UsingTool &&
+                                player.freezePause <= 0 && Game1.activeClickableMenu == null;
 
             if (readyToRecast && WouldNextCastExhaust(player, autoRecastRod))
             {
@@ -701,8 +702,9 @@ namespace EideeEasyFishing
                 return;
             }
 
-            if (IsValidStopTime(_config.StopAutoRecastAtTime) &&
-                Game1.timeOfDay >= _config.StopAutoRecastAtTime &&
+            var stopTime = GetEffectiveStopTime(_config.StopAutoRecastAtTime);
+            if (stopTime != 0 &&
+                Game1.timeOfDay >= stopTime &&
                 !_autoRecastStopPending)
             {
                 _autoRecastStopPending = true;
@@ -1012,9 +1014,22 @@ namespace EideeEasyFishing
             return _stopAutoRecastButton;
         }
 
+        // The upper bound is 1:50 AM (2550), not the game's 2:00 AM end-of-day (2600). At 2600 the
+        // vanilla Game1.UpdateOther pass-out check (timeOfDay >= 2600) runs inside the game update,
+        // before SMAPI raises UpdateTicked where this loop opens its stop menu, so a 2600 threshold
+        // could pass the player out before the clock-freezing menu ever opens. Stopping one step
+        // earlier keeps the menu-open safety guaranteed in single-player.
         private static bool IsValidStopTime(int time)
         {
-            return time >= 600 && time <= 2600 && time % 10 == 0 && time % 100 <= 50;
+            return time >= 600 && time <= 2550 && time % 10 == 0 && time % 100 <= 50;
+        }
+
+        private static int GetEffectiveStopTime(int time)
+        {
+            // Preserve configs written by the initial implementation: 2600 was previously accepted,
+            // but waiting until then loses the race with the game's 2:00 AM pass-out check.
+            if (time == 2600) return 2550;
+            return IsValidStopTime(time) ? time : 0;
         }
 
         private static int StopTimeStepToTime(int step)
@@ -1023,11 +1038,12 @@ namespace EideeEasyFishing
 
             var minutes = (step - 1) * 10;
             var time = 600 + (minutes / 60) * 100 + (minutes % 60);
-            return Math.Min(time, 2600);
+            return Math.Min(time, 2550);
         }
 
         private static int StopTimeToStep(int time)
         {
+            if (time == 2600) time = 2550;
             if (!IsValidStopTime(time)) return 0;
 
             return ((time / 100 - 6) * 60 + time % 100) / 10 + 1;
