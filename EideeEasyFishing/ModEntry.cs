@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using GenericModConfigMenu;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -8,6 +9,7 @@ using StardewValley.Constants;
 using StardewValley.Enchantments;
 using StardewValley;
 using StardewValley.Menus;
+using StardewValley.Minigames;
 using StardewValley.Tools;
 
 namespace EideeEasyFishing
@@ -22,6 +24,7 @@ namespace EideeEasyFishing
         private const string DeluxeBaitQualifiedItemId = "(O)DeluxeBait";
         private const int AutoAdvanceCatchRetryTicks = 30;
         private const int AutoAdvanceCatchMaxAttempts = 5;
+        private static readonly FieldInfo FairEndTimerField = typeof(FishingGame).GetField("gameEndTimer", BindingFlags.Instance | BindingFlags.NonPublic);
 
         // The game's nominal tick rate. Used to turn a bobber's flight time into the number of
         // times FishingRod.tickUpdate can steer it, which is what bounds how far a real player
@@ -48,6 +51,7 @@ namespace EideeEasyFishing
 
         private ModConfig _config;
         private ModConfigKeys _keys;
+        private FishChancePanel _fishChancePanel;
         private string _stopAutoRecastRaw;
         private SButton _stopAutoRecastButton = SButton.None;
 
@@ -56,6 +60,9 @@ namespace EideeEasyFishing
         private float _prevBobberPosition;
         private float _prevDistanceFromCatching;
         private float _prevTreasureCatchLevel;
+        private BobberBar _resultBar;
+        private FishingRod _resultRod;
+        private bool _resultWasSkipped;
 
         private FishingRod _swappedRod;
         private bool _baitSwapped;
@@ -66,9 +73,18 @@ namespace EideeEasyFishing
         private ItemGrabMenu _autoCollectDeferredMenu;
 
         private FishingRod _autoRecastRod;
+        private AutoRecastContext _autoRecastContext;
+        private FishingGame _autoRecastFair;
+        private Event _autoRecastIceEvent;
         private bool _autoRecastStopPending;
         private bool _autoRecastDispatched;
         private bool _autoRecastForcePower;
+        private bool _hasAutoRecastTarget;
+        private Vector2 _autoRecastTarget;
+        private Point _autoRecastStandingPixel;
+        private GameLocation _autoRecastLocation;
+        private float _autoRecastPower;
+        private int _autoRecastFacing;
         private bool _prevRodInUse;
         private int _autoAdvanceCatchAttempts;
         private int _autoAdvanceCatchCooldownTicks;
@@ -87,12 +103,14 @@ namespace EideeEasyFishing
 
             _config = Helper.ReadConfig<ModConfig>();
             _keys = _config.Controls.ParseControls();
+            _fishChancePanel = new FishChancePanel(helper.Translation, Monitor, () => _config);
 
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.Display.RenderedHud += OnRenderedHud;
             helper.Events.Display.RenderedWorld += OnRenderedWorld;
             helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
             helper.Events.Input.ButtonPressed += OnButtonPressed;
+            helper.Events.Input.MouseWheelScrolled += OnMouseWheelScrolled;
             helper.Events.GameLoop.GameLaunched += OnGameLaunched;
             helper.Events.GameLoop.Saving += OnSaving;
             helper.Events.GameLoop.DayEnding += OnDayEnding;
@@ -232,6 +250,40 @@ namespace EideeEasyFishing
                 getValue: () => _config.AutoCollectFishingTreasure,
                 setValue: value => _config.AutoCollectFishingTreasure = value);
 
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.show-catch-result.name"),
+                tooltip: () => Helper.Translation.Get("config.show-catch-result.description"),
+                getValue: () => _config.ShowCatchResult,
+                setValue: value => _config.ShowCatchResult = value);
+
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.fish-chances.name"),
+                tooltip: () => Helper.Translation.Get("config.fish-chances.description"),
+                getValue: () => _config.ShowFishChances,
+                setValue: value => _config.ShowFishChances = value);
+            configMenu.AddBoolOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.fish-chances.island-walnuts.name"),
+                tooltip: () => Helper.Translation.Get("config.fish-chances.island-walnuts.description"),
+                getValue: () => _config.ShowIslandWalnutChance,
+                setValue: value => _config.ShowIslandWalnutChance = value);
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.fish-chances.samples.name"),
+                tooltip: () => Helper.Translation.Get("config.fish-chances.samples.description"),
+                getValue: () => _config.FishChanceSamples,
+                setValue: value => _config.FishChanceSamples = (int)value,
+                min: 100, max: 2000, interval: 100);
+            configMenu.AddNumberOption(
+                mod: ModManifest,
+                name: () => Helper.Translation.Get("config.fish-chances.opacity.name"),
+                tooltip: () => Helper.Translation.Get("config.fish-chances.opacity.description"),
+                getValue: () => _config.FishChancePanelOpacity,
+                setValue: value => _config.FishChancePanelOpacity = value,
+                min: 0.1f, max: 1f, interval: 0.1f);
+
             configMenu.AddSectionTitle(
                 mod: ModManifest,
                 text: I18n.Config_Section_Minigame_Name);
@@ -315,6 +367,10 @@ namespace EideeEasyFishing
             if (args.NewMenu is not BobberBar bar) return;
             if (!_config.Enabled) return;
 
+            _resultBar = bar;
+            _resultRod = rod;
+            _resultWasSkipped = _config.SkipMinigame;
+
             // Capture original bait id before RestoreSwap clears it, so we can replay the
             // BobberBar-constructor effects the synthetic Magic Bait swap suppressed.
             var swappedAwayBaitId = (_baitSwapped && _swappedRod == rod) ? _originalBait?.QualifiedItemId : null;
@@ -389,7 +445,9 @@ namespace EideeEasyFishing
 
         private void OnRenderedHud(object sender, RenderedHudEventArgs args)
         {
+            _fishChancePanel.Draw(args.SpriteBatch);
             if (_autoRecastRod == null || _autoRecastStopPending ||
+                (!_hasAutoRecastTarget && !_castOwnedByAutoRecast && _autoRecastRod.castedButBobberStillInAir) ||
                 Game1.activeClickableMenu != null || Game1.eventUp)
             {
                 return;
@@ -504,6 +562,8 @@ namespace EideeEasyFishing
         {
             if (!_config.Enabled)
             {
+                ClearCatchResult();
+                _fishChancePanel.Reset();
                 // Defensive: undo any in-flight swap if the mod was disabled outside the hotkey path.
                 RestoreSwap();
                 ClearAutoRecast();
@@ -512,6 +572,8 @@ namespace EideeEasyFishing
             }
 
             UpdateSwapState();
+            _fishChancePanel.Update();
+            UpdateCatchResult();
             UpdateAutoRecast();
             // Runs after UpdateAutoRecast so _castOwnedByAutoRecast is already set for a cast the
             // loop dispatched on this same tick.
@@ -523,10 +585,12 @@ namespace EideeEasyFishing
 
             if (player.CurrentTool is FishingRod rod)
             {
-                if ((_config.AlwaysMaxCastPower || _autoRecastForcePower) && rod.isTimingCast)
+                if (rod.isTimingCast && (_autoRecastForcePower || _config.AlwaysMaxCastPower))
                 {
                     rod.castingTimerSpeed = 0;
-                    rod.castingPower = 1;
+                    // A replay uses the actual released power from the initial cast. The maximum
+                    // option affects that manual cast, rather than overriding a recorded replay.
+                    rod.castingPower = _autoRecastForcePower ? _autoRecastPower : 1f;
                 }
                 else if (rod.castingTimerSpeed == 0f)
                 {
@@ -645,6 +709,56 @@ namespace EideeEasyFishing
             }
         }
 
+        private void UpdateCatchResult()
+        {
+            if (!_config.ShowCatchResult || !Context.IsWorldReady ||
+                Game1.player is not { IsLocalPlayer: true } player ||
+                _resultRod == null || player.CurrentTool != _resultRod || _resultBar == null)
+            {
+                ClearCatchResult();
+                return;
+            }
+
+            if (_resultRod.pullingOutOfWater && _resultRod.whichFish != null)
+            {
+                // The rod has already applied the game's perfect-catch quality upgrade. Only a
+                // successful minigame or our own skip is eligible; an escaped fish is not a catch.
+                if (_resultWasSkipped || (_resultBar.handledFishResult && _resultBar.distanceFromCatching > 0.9f))
+                {
+                    var qualityKey = _resultRod.fishQuality switch
+                    {
+                        0 => "catch-result.quality.normal",
+                        1 => "catch-result.quality.silver",
+                        2 => "catch-result.quality.gold",
+                        4 => "catch-result.quality.iridium",
+                        _ => null
+                    };
+                    var quality = qualityKey != null
+                        ? Helper.Translation.Get(qualityKey).ToString()
+                        : Helper.Translation.Get("catch-result.quality.other", new { value = _resultRod.fishQuality }).ToString();
+                    var fish = _resultRod.whichFish.GetParsedOrErrorData().DisplayName;
+                    var perfect = _resultWasSkipped || _resultBar.perfect
+                        ? Helper.Translation.Get("catch-result.perfect").ToString()
+                        : "";
+                    var message = Helper.Translation.Get("catch-result.message", new { fish, quality, perfect });
+                    Game1.addHUDMessage(HUDMessage.ForCornerTextbox(message));
+                }
+                ClearCatchResult();
+            }
+            else if (_resultRod.isTimingCast || _resultRod.castedButBobberStillInAir)
+            {
+                // An interrupted or failed catch must not be reported on a later cast.
+                ClearCatchResult();
+            }
+        }
+
+        private void ClearCatchResult()
+        {
+            _resultBar = null;
+            _resultRod = null;
+            _resultWasSkipped = false;
+        }
+
         private void UpdateAutoRecast()
         {
             if (!Context.IsWorldReady)
@@ -659,12 +773,43 @@ namespace EideeEasyFishing
                 ? player.CurrentTool as FishingRod
                 : null;
             var wasRodInUse = UpdateRodUseState(currentRod, out var rodInUse);
+            var fair = Game1.currentMinigame as FishingGame;
+            var iceEvent = player?.currentLocation?.currentEvent;
+            int? fairRemaining = fair != null && FairEndTimerField?.GetValue(fair) is int remaining ? remaining : null;
+            var context = AutoRecastContextPolicy.Resolve(Context.IsWorldReady, Game1.eventUp,
+                Game1.currentMinigame != null, fair != null, fair?.gameDone == true || fair?.exit == true,
+                fairRemaining, fair != null && player?.currentLocation == Game1.currentLocation &&
+                               player?.currentLocation?.Name == "fishingGame",
+                currentRod != null && ReferenceEquals(player?.TemporaryItem, currentRod),
+                iceEvent != null && iceEvent.isFestival && iceEvent.isSpecificFestival("winter8") &&
+                iceEvent.playerControlSequence && iceEvent.playerControlSequenceID == "iceFishing",
+                iceEvent?.festivalTimer ?? 0);
+
+            if (_autoRecastRod != null && (context != _autoRecastContext ||
+                (context == AutoRecastContext.FairFishing && fair != _autoRecastFair) ||
+                (context == AutoRecastContext.IceFishing && iceEvent != _autoRecastIceEvent)))
+            {
+                // The fair normally finishes its own cast. If our cast is still charging or flying
+                // after time expires, cancel only that mod-owned cast so results can proceed.
+                if (_autoRecastContext == AutoRecastContext.FairFishing && fair == _autoRecastFair &&
+                    fairRemaining <= 0 && !fair.gameDone && Game1.activeClickableMenu == null &&
+                    currentRod == _autoRecastRod && _castOwnedByAutoRecast &&
+                    (currentRod.isTimingCast || currentRod.isCasting || currentRod.castedButBobberStillInAir))
+                    fair.EmergencyCancel();
+                ClearAutoRecast();
+                ResetBubbleCastAssist();
+            }
+
+            if (context == AutoRecastContext.Blocked) return;
 
             if (_autoRecastRod == null)
             {
                 if (currentRod != null && !wasRodInUse && rodInUse && IsAutoRecastEligible())
                 {
                     _autoRecastRod = currentRod;
+                    _autoRecastContext = context;
+                    _autoRecastFair = fair;
+                    _autoRecastIceEvent = iceEvent;
                 }
                 return;
             }
@@ -675,6 +820,18 @@ namespace EideeEasyFishing
             {
                 ClearAutoRecast();
                 return;
+            }
+
+            // Capture the released power and actual landing point, after manual steering or bubble
+            // assist has finished. castingPower stays unchanged until the next cast starts.
+            if (!_hasAutoRecastTarget && !_castOwnedByAutoRecast && autoRecastRod.isFishing)
+            {
+                _autoRecastTarget = autoRecastRod.bobber.Value;
+                _autoRecastStandingPixel = player.StandingPixel;
+                _autoRecastLocation = player.currentLocation;
+                _autoRecastPower = Math.Clamp(autoRecastRod.castingPower, 0f, 1f);
+                _autoRecastFacing = autoRecastRod.originalFacingDirection;
+                _hasAutoRecastTarget = true;
             }
 
             if (_autoRecastDispatched && rodInUse)
@@ -696,10 +853,10 @@ namespace EideeEasyFishing
             var readyToRecast = !_autoRecastDispatched && !rodInUse &&
                                 !autoRecastRod.pullingOutOfWater && !autoRecastRod.showingTreasure &&
                                 !autoRecastRod.castedButBobberStillInAir && !autoRecastRod.hit &&
-                                Context.IsPlayerFree && !Game1.eventUp && !player.UsingTool &&
+                                (Context.IsPlayerFree || (context == AutoRecastContext.FairFishing && !Game1.dialogueUp)) && !player.UsingTool &&
                                 player.freezePause <= 0 && Game1.activeClickableMenu == null;
 
-            if (readyToRecast && WouldNextCastExhaust(player, autoRecastRod))
+            if (context == AutoRecastContext.World && readyToRecast && WouldNextCastExhaust(player, autoRecastRod))
             {
                 ShowAutoRecastNotice(I18n.Message_AutoRecast_Stopped_Stamina());
                 Game1.activeClickableMenu = new GameMenu();
@@ -708,7 +865,7 @@ namespace EideeEasyFishing
             }
 
             var stopTime = GetEffectiveStopTime(_config.StopAutoRecastAtTime);
-            if (stopTime != 0 &&
+            if (context == AutoRecastContext.World && stopTime != 0 &&
                 Game1.timeOfDay >= stopTime &&
                 !_autoRecastStopPending)
             {
@@ -721,7 +878,7 @@ namespace EideeEasyFishing
             // player never makes, and the game menu that protects them from the 2:00 AM pass-out
             // would never open. Advancing cannot start a cast, so a pending stop still wins.
             if (autoRecastRod.fishCaught && Game1.activeClickableMenu == null &&
-                !Game1.eventUp && player.freezePause <= 0)
+                player.freezePause <= 0)
             {
                 if (_autoAdvanceCatchCooldownTicks > 0)
                 {
@@ -756,23 +913,41 @@ namespace EideeEasyFishing
 
             if (!readyToRecast) return;
 
-            if (!IsFullPowerCastFishable(player))
+            // Leave time for the fair's own end-of-round transition rather than starting a new cast.
+            if (context == AutoRecastContext.FairFishing && fairRemaining <= 1500) return;
+
+            // A failed or interrupted initial cast doesn't provide a safe position to replay.
+            if (!_hasAutoRecastTarget)
             {
-                // A full-power recast from here would land off fishable water. Stop rather than wait:
-                // repositioning needs a movement input, and movement is itself a cancel input, so an
-                // armed loop that waits here can never recover and the overlay would lie indefinitely.
+                ClearAutoRecast();
+                return;
+            }
+
+            if (player.currentLocation != _autoRecastLocation || player.StandingPixel != _autoRecastStandingPixel ||
+                !IsRecastTargetFishable(player, _autoRecastTarget))
+            {
                 ShowAutoRecastNotice(I18n.Message_AutoRecast_Stopped_NoWater());
                 ClearAutoRecast();
                 return;
             }
 
-            player.BeginUsingTool();
+            player.faceDirection(_autoRecastFacing);
             _autoRecastDispatched = true;
             _autoRecastForcePower = true;
             // Marks this cast as loop-initiated for the whole of its life. The two flags above
             // cannot serve that purpose: both are already cleared by the time the bobber leaves
             // the rod, which is the moment the bubble assist decides whether to engage.
             _castOwnedByAutoRecast = true;
+            if (context == AutoRecastContext.World)
+                player.BeginUsingTool();
+            else
+            {
+                // Festival controls can bypass the normal tool-input path. Start the rod directly,
+                // then restore the original power before the game releases the cast.
+                autoRecastRod.beginUsing(player.currentLocation, 0, 0, player);
+                autoRecastRod.castingPower = _autoRecastPower;
+                autoRecastRod.castingTimerSpeed = 0f;
+            }
         }
 
         private void UpdateBubbleCastAssist()
@@ -807,8 +982,13 @@ namespace EideeEasyFishing
             {
                 // Decide once, on the tick the bobber leaves the rod. A later tick would be
                 // reading a launch point the game has already nudged sideways.
-                if (bobberWasInAir || !_config.CastAtFishingBubbles || _castOwnedByAutoRecast) return;
-                if (!TryStartBubbleCastAssist(player, rod)) return;
+                if (bobberWasInAir) return;
+                if (_castOwnedByAutoRecast)
+                {
+                    if (!_hasAutoRecastTarget || _autoRecastRod != rod) return;
+                    StartCastCorrection(rod, _autoRecastTarget);
+                }
+                else if (!_config.CastAtFishingBubbles || !TryStartBubbleCastAssist(player, rod)) return;
             }
             else if (_bubbleAssistRod != rod)
             {
@@ -881,12 +1061,17 @@ namespace EideeEasyFishing
 
             if (!IsBubbleWithinAssistRange(player, bubble, reach, flightMilliseconds)) return false;
 
-            _bubbleAssistRod = rod;
-            _bubbleAssistTarget = GetBubbleTileCenter(bubble);
-            _bubbleAssistVisualCorrection = _bubbleAssistTarget - launch;
-            _bubbleAssistPinnedPosition = launch;
-            _bubbleAssistAppliedFraction = 0f;
+            StartCastCorrection(rod, GetBubbleTileCenter(bubble));
             return true;
+        }
+
+        private void StartCastCorrection(FishingRod rod, Vector2 target)
+        {
+            _bubbleAssistRod = rod;
+            _bubbleAssistTarget = target;
+            _bubbleAssistVisualCorrection = target - rod.bobber.Value;
+            _bubbleAssistPinnedPosition = rod.bobber.Value;
+            _bubbleAssistAppliedFraction = 0f;
         }
 
         /// <summary>Aims at the middle of the bubble tile, which is the one point that satisfies
@@ -1066,34 +1251,11 @@ namespace EideeEasyFishing
             return player.Stamina - (8f - player.FishingLevel * 0.1f) <= 0f;
         }
 
-        private static bool IsFullPowerCastFishable(Farmer player)
+        private static bool IsRecastTargetFishable(Farmer player, Vector2 target)
         {
-            var addedDistance = player.FishingLevel >= 15 ? 4 :
-                player.FishingLevel >= 8 ? 3 :
-                player.FishingLevel >= 4 ? 2 :
-                player.FishingLevel >= 1 ? 1 : 0;
-            var standingPixel = player.StandingPixel;
-            float bobberX;
-            float bobberY;
-
-            if (player.FacingDirection == 1 || player.FacingDirection == 3)
-            {
-                var distance = Math.Max(128f, 1f * (addedDistance + 4) * 64f);
-                distance -= 8f;
-                bobberX = standingPixel.X + (player.FacingDirection != 3 ? 1 : -1) * distance;
-                bobberY = standingPixel.Y;
-            }
-            else
-            {
-                var distance = 0f - Math.Max(128f, 1f * (addedDistance + 3) * 64f);
-                if (player.FacingDirection == 0) distance = 0f - distance;
-                bobberX = standingPixel.X;
-                bobberY = standingPixel.Y - distance;
-            }
-
-            var tileX = (int)(bobberX / 64f);
-            var tileY = (int)(bobberY / 64f);
-            return player.currentLocation.canFishHere() &&
+            var tileX = (int)(target.X / 64f);
+            var tileY = (int)(target.Y / 64f);
+            return player.currentLocation != null && player.currentLocation.canFishHere() &&
                    player.currentLocation.isTileFishable(tileX, tileY);
         }
 
@@ -1158,10 +1320,17 @@ namespace EideeEasyFishing
 
         private void ClearAutoRecast()
         {
+            if (_castOwnedByAutoRecast && _bubbleAssistRod == _autoRecastRod)
+                ClearBubbleCastAssist();
             _autoRecastRod = null;
+            _autoRecastContext = AutoRecastContext.Blocked;
+            _autoRecastFair = null;
+            _autoRecastIceEvent = null;
             _autoRecastStopPending = false;
             _autoRecastDispatched = false;
             _autoRecastForcePower = false;
+            _hasAutoRecastTarget = false;
+            _autoRecastLocation = null;
             _autoAdvanceCatchAttempts = 0;
             _autoAdvanceCatchCooldownTicks = 0;
             // Preserve the edge tracker so cleanup during a cast can't re-arm without a new manual use.
@@ -1411,29 +1580,35 @@ namespace EideeEasyFishing
                 ShowAutoRecastNotice(I18n.Message_AutoRecast_Stopped_Manual());
             }
 
-            if (_autoRecastRod != null && IsAutoRecastCancelInput(args.Button))
+            // Allow the initial manual cast to be steered in flight before its landing point is
+            // recorded. Menu and the dedicated stop key still cancel immediately.
+            var steeringManualCast = _autoRecastRod != null && !_hasAutoRecastTarget &&
+                                     !_castOwnedByAutoRecast && _autoRecastRod.castedButBobberStillInAir;
+            if (_autoRecastRod != null && IsAutoRecastCancelInput(args.Button, steeringManualCast))
             {
                 ClearAutoRecast();
                 ShowAutoRecastNotice(I18n.Message_AutoRecast_Stopped_Manual());
             }
         }
 
-        private static bool IsAutoRecastCancelInput(SButton button)
+        private void OnMouseWheelScrolled(object sender, MouseWheelScrolledEventArgs args)
         {
-            if (button is SButton.ControllerStart or SButton.ControllerB or
-                SButton.DPadUp or SButton.DPadDown or
-                SButton.DPadLeft or SButton.DPadRight)
-            {
-                return true;
-            }
+            _fishChancePanel.Scroll(args.Delta, new Vector2(Game1.getMouseX(true), Game1.getMouseY(true)));
+        }
+
+        private static bool IsAutoRecastCancelInput(SButton button, bool allowSteering)
+        {
+            if (button is SButton.ControllerStart or SButton.ControllerB) return true;
+            if (button is SButton.DPadUp or SButton.DPadDown or SButton.DPadLeft or SButton.DPadRight)
+                return !allowSteering;
 
             if (!button.TryGetKeyboard(out var key)) return false;
 
             return Game1.options.doesInputListContain(Game1.options.menuButton, key) ||
-                   Game1.options.doesInputListContain(Game1.options.moveUpButton, key) ||
+                   (!allowSteering && (Game1.options.doesInputListContain(Game1.options.moveUpButton, key) ||
                    Game1.options.doesInputListContain(Game1.options.moveDownButton, key) ||
                    Game1.options.doesInputListContain(Game1.options.moveLeftButton, key) ||
-                   Game1.options.doesInputListContain(Game1.options.moveRightButton, key);
+                   Game1.options.doesInputListContain(Game1.options.moveRightButton, key)));
         }
     }
 }

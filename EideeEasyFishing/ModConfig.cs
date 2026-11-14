@@ -24,6 +24,11 @@
         public bool AutoRecast { get; set; } = false;
         public int StopAutoRecastAtTime { get; set; } = 0;
         public bool AutoCollectFishingTreasure { get; set; } = false;
+        public bool ShowCatchResult { get; set; } = true;
+        public bool ShowFishChances { get; set; } = true;
+        public bool ShowIslandWalnutChance { get; set; } = false;
+        public int FishChanceSamples { get; set; } = 500;
+        public float FishChancePanelOpacity { get; set; } = 0.75f;
         public float FishMovementSpeedMultiplier { get; set; } = 0.5f;
         public float ProgressBarDecreaseMultiplier { get; set; } = 0.5f;
         public float ProgressBarIncreaseMultiplier { get; set; } = 1.25f;
